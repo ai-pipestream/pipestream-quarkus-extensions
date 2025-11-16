@@ -4,6 +4,8 @@ plugins {
     id("maven-publish")
 }
 
+import org.gradle.api.tasks.compile.JavaCompile
+
 group = "ai.pipestream"
 version = "4.0.0-SNAPSHOT"
 
@@ -43,10 +45,30 @@ tasks {
         
         // Relocate packages to avoid conflicts
         relocate("org.apache.tika", "ai.pipestream.shaded.tika")
+        
+        // Preserve important manifest entries
+        manifest {
+            attributes(
+                "Implementation-Title" to "Tika 4 Shaded",
+                "Implementation-Version" to project.version,
+                "Implementation-Vendor" to "ai.pipestream",
+                "Built-By" to System.getProperty("user.name"),
+                "Built-JDK" to System.getProperty("java.version"),
+                "Created-By" to "Gradle ${gradle.gradleVersion}"
+            )
+        }
+        
+        // Minimize the JAR by removing unused classes (optional, can be enabled if needed)
+        // minimize()
     }
     
     build {
         dependsOn(shadowJar)
+    }
+    
+    // Ensure Java 21 compatibility
+    withType<JavaCompile> {
+        options.release.set(21)
     }
 }
 
@@ -66,6 +88,17 @@ publishing {
                         url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
                     }
                 }
+            }
+        }
+    }
+    
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/ai-pipestream/tika4-shaded")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
             }
         }
     }
