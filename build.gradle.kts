@@ -2,13 +2,27 @@ plugins {
     id("java-library")
     id("com.gradleup.shadow") version "9.2.2"
     id("maven-publish")
+    id("pl.allegro.tech.build.axion-release") version "1.21.0"
 }
 
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.tasks.compile.JavaCompile
 
 group = "ai.pipestream"
-version = "4.0.0-SNAPSHOT"
+
+// Configure axion-release plugin for semantic versioning
+scmVersion {
+    tag {
+        prefix.set("v")
+    }
+    checks {
+        uncommittedChanges.set(false)
+        aheadOfRemote.set(false)
+        snapshotDependencies.set(false)
+    }
+}
+
+version = scmVersion.version
 
 java {
     toolchain {
