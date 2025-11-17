@@ -17,6 +17,7 @@ Thumbs.db
 
 # Generated files
 bin/
+.dev-helpers/
 out/
 .gradle
 build
