@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @param <T> the Protobuf message type
  * @see UuidKeyExtractor
  */
+@SuppressWarnings("unused")
 public class RandomUuidKeyExtractor<T extends Message> implements UuidKeyExtractor<T> {
 
     private static final Logger LOG = Logger.getLogger(RandomUuidKeyExtractor.class);
@@ -65,7 +66,7 @@ public class RandomUuidKeyExtractor<T extends Message> implements UuidKeyExtract
     private void logWarningOnce() {
         if (WARNING_LOGGED.compareAndSet(false, true)) {
             LOG.warn("=".repeat(80));
-            LOG.warn("RandomUuidKeyExtractor is being used!");
+            LOG.warn("RandomUuidKeyExtractor is being used!  STUPID DATA SCIENTIST ALERT!");
             LOG.warn("This generates random UUIDs which breaks idempotency and replay.");
             LOG.warn("DO NOT USE IN PRODUCTION - implement UuidKeyExtractor for your message type.");
             LOG.warn("=".repeat(80));

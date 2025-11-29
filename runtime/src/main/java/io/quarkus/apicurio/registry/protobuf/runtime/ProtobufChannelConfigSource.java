@@ -38,6 +38,7 @@ import java.util.Set;
  * <li>Default values: ~100</li>
  * </ol>
  */
+@SuppressWarnings("unused")
 public class ProtobufChannelConfigSource implements ConfigSource {
 
     // Value serializers (Protobuf via Apicurio Registry)
@@ -96,7 +97,7 @@ public class ProtobufChannelConfigSource implements ConfigSource {
     }
 
     private void buildProperties() {
-        if (!enabled || properties.size() > 0) {
+        if (!enabled || !properties.isEmpty()) {
             return;
         }
 

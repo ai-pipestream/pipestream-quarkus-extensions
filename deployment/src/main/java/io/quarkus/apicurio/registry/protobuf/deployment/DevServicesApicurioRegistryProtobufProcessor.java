@@ -1,11 +1,10 @@
 package io.quarkus.apicurio.registry.protobuf.deployment;
 
-import io.quarkus.deployment.IsNormal;
+import io.quarkus.deployment.IsProduction;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.BuildSteps;
 import io.quarkus.deployment.builditem.CuratedApplicationShutdownBuildItem;
 import io.quarkus.deployment.builditem.DevServicesResultBuildItem;
-import io.quarkus.deployment.builditem.DevServicesResultBuildItem.RunningDevService;
 import io.quarkus.deployment.builditem.DockerStatusBuildItem;
 import io.quarkus.deployment.builditem.LaunchModeBuildItem;
 import io.quarkus.deployment.console.ConsoleInstalledBuildItem;
@@ -46,17 +45,20 @@ import java.util.Optional;
  * container across multiple Quarkus applications.</li>
  * </ul>
  */
-@BuildSteps(onlyIfNot = IsNormal.class, onlyIf = DevServicesConfig.Enabled.class)
+@BuildSteps(onlyIfNot = IsProduction.class, onlyIf = DevServicesConfig.Enabled.class)
 public class DevServicesApicurioRegistryProtobufProcessor {
 
     private static final Logger log = Logger.getLogger(DevServicesApicurioRegistryProtobufProcessor.class);
 
+    private static final String DEV_SERVICE_NAME = "apicurio-registry-protobuf";
     private static final int APICURIO_REGISTRY_PORT = 8080;
     private static final String APICURIO_REGISTRY_URL_CONFIG = "mp.messaging.connector.smallrye-kafka.apicurio.registry.url";
     private static final String DEV_SERVICE_LABEL = "quarkus-dev-service-apicurio-registry-protobuf";
     private static final String DEFAULT_IMAGE = "apicurio/apicurio-registry:3.1.4";
 
-    static volatile RunningDevService devService;
+    // Container state for lifecycle management
+    static volatile ApicurioRegistryContainer runningContainer;
+    static volatile Map<String, String> runningConfig;
     static volatile ApicurioRegistryDevServiceCfg cfg;
     static volatile boolean first = true;
 
@@ -72,10 +74,14 @@ public class DevServicesApicurioRegistryProtobufProcessor {
 
         ApicurioRegistryDevServiceCfg configuration = getConfiguration(config.devservices());
 
-        if (devService != null) {
+        if (runningContainer != null) {
             boolean restartRequired = !configuration.equals(cfg);
             if (!restartRequired) {
-                return devService.toBuildItem();
+                return DevServicesResultBuildItem.discovered()
+                        .name(DEV_SERVICE_NAME)
+                        .containerId(runningContainer.getContainerId())
+                        .config(runningConfig)
+                        .build();
             }
             shutdownApicurioRegistry();
             cfg = null;
@@ -85,38 +91,43 @@ public class DevServicesApicurioRegistryProtobufProcessor {
                 (launchMode.isTest() ? "(test) " : "") + "Apicurio Registry Protobuf Dev Services Starting:",
                 consoleInstalledBuildItem, loggingSetupBuildItem);
         try {
-            devService = startApicurioRegistry(dockerStatusBuildItem, configuration, launchMode,
+            StartResult result = startApicurioRegistry(dockerStatusBuildItem, configuration, launchMode,
                     devServicesConfig.timeout());
             compressor.close();
+
+            if (result == null) {
+                return null;
+            }
+
+            runningContainer = result.container;
+            runningConfig = result.config;
+            cfg = configuration;
+
+            log.infof("Dev Services for Apicurio Registry (Protobuf) started. The registry is available at %s",
+                    runningConfig.get(APICURIO_REGISTRY_URL_CONFIG));
+
+            if (first) {
+                first = false;
+                Runnable closeTask = () -> {
+                    shutdownApicurioRegistry();
+                    first = true;
+                    runningContainer = null;
+                    runningConfig = null;
+                    cfg = null;
+                };
+                closeBuildItem.addCloseTask(closeTask, true);
+            }
+
+            return DevServicesResultBuildItem.discovered()
+                    .name(DEV_SERVICE_NAME)
+                    .containerId(runningContainer.getContainerId())
+                    .config(runningConfig)
+                    .build();
+
         } catch (Throwable t) {
             compressor.closeAndDumpCaptured();
             throw new RuntimeException(t);
         }
-
-        if (devService == null) {
-            return null;
-        }
-
-        cfg = configuration;
-
-        if (devService.isOwner()) {
-            log.infof("Dev Services for Apicurio Registry (Protobuf) started. The registry is available at %s",
-                    devService.getConfig().get(APICURIO_REGISTRY_URL_CONFIG));
-        }
-
-        if (first) {
-            first = false;
-            Runnable closeTask = () -> {
-                if (devService != null) {
-                    shutdownApicurioRegistry();
-                }
-                first = true;
-                devService = null;
-                cfg = null;
-            };
-            closeBuildItem.addCloseTask(closeTask, true);
-        }
-        return devService.toBuildItem();
     }
 
     private Map<String, String> getRegistryUrlConfigs(String baseUrl) {
@@ -125,18 +136,19 @@ public class DevServicesApicurioRegistryProtobufProcessor {
     }
 
     private void shutdownApicurioRegistry() {
-        if (devService != null) {
+        if (runningContainer != null) {
             try {
-                devService.close();
+                runningContainer.stop();
             } catch (Throwable e) {
                 log.error("Failed to stop Apicurio Registry", e);
             } finally {
-                devService = null;
+                runningContainer = null;
+                runningConfig = null;
             }
         }
     }
 
-    private RunningDevService startApicurioRegistry(
+    private StartResult startApicurioRegistry(
             DockerStatusBuildItem dockerStatusBuildItem,
             ApicurioRegistryDevServiceCfg config,
             LaunchModeBuildItem launchMode,
@@ -172,8 +184,7 @@ public class DevServicesApicurioRegistryProtobufProcessor {
         container.withEnv(config.containerEnv);
         container.start();
 
-        return new RunningDevService("apicurio-registry-protobuf", container.getContainerId(),
-                container::close, getRegistryUrlConfigs(container.getUrl()));
+        return new StartResult(container, getRegistryUrlConfigs(container.getUrl()));
     }
 
     private boolean isPropertySet(String propertyName) {
@@ -204,6 +215,12 @@ public class DevServicesApicurioRegistryProtobufProcessor {
     private ApicurioRegistryDevServiceCfg getConfiguration(
             ApicurioRegistryProtobufBuildTimeConfig.DevServicesConfig cfg) {
         return new ApicurioRegistryDevServiceCfg(cfg);
+    }
+
+    /**
+     * Result of starting the Apicurio Registry container.
+     */
+    private record StartResult(ApicurioRegistryContainer container, Map<String, String> config) {
     }
 
     private static final class ApicurioRegistryDevServiceCfg {

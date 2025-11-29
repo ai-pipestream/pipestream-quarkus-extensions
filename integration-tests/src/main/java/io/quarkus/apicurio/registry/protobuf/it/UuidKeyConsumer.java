@@ -32,6 +32,7 @@ public class UuidKeyConsumer {
      * Uses {@link Message} wrapper to access Kafka metadata including the key.
      */
     @Incoming("uuid-key-in")                                          // (1) Channel name
+    @SuppressWarnings("unchecked") // Raw type from getMetadata is safe - types erased at runtime
     public CompletionStage<Void> consume(Message<TestRecord> message) {
         TestRecord record = message.getPayload();                     // (2) Get Protobuf payload
 
