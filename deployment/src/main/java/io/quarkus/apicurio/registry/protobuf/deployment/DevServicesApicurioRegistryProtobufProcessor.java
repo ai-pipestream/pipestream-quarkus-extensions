@@ -33,7 +33,7 @@ import java.util.Optional;
  * Protobuf schema registration and lookup.
  * </p>
  *
- * <h3>Features</h3>
+ * <h2>Features</h2>
  * <ul>
  * <li><strong>Automatic Startup:</strong> Starts an Apicurio Registry container
  * if no URL is configured.</li>
@@ -62,6 +62,24 @@ public class DevServicesApicurioRegistryProtobufProcessor {
     static volatile ApicurioRegistryDevServiceCfg cfg;
     static volatile boolean first = true;
 
+    /**
+     * Default constructor.
+     */
+    public DevServicesApicurioRegistryProtobufProcessor() {
+    }
+
+    /**
+     * Starts the Apicurio Registry Dev Service.
+     *
+     * @param launchMode                the launch mode
+     * @param dockerStatusBuildItem     the Docker status
+     * @param config                    the build time configuration
+     * @param consoleInstalledBuildItem the console installed build item
+     * @param closeBuildItem            the shutdown build item
+     * @param loggingSetupBuildItem     the logging setup build item
+     * @param devServicesConfig         the dev services configuration
+     * @return the dev services result build item
+     */
     @BuildStep
     public DevServicesResultBuildItem startApicurioRegistryDevService(
             LaunchModeBuildItem launchMode,
