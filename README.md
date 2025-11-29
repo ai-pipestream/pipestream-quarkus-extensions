@@ -10,6 +10,7 @@ This extension **auto-detects Protobuf message types** in your Kafka channels an
 - **Schema registry integration** - Auto-registers schemas and derives message classes
 - **DevServices** - Apicurio Registry starts automatically in dev/test mode
 - **Type-safe messaging** - Full Protobuf type support with generated Java classes
+- **Mutiny support** - Works with reactive `Multi<T>` and `Uni<Void>` patterns
 - **Native image support** - Works with GraalVM native compilation
 
 ## Architecture
@@ -33,7 +34,9 @@ flowchart LR
     R -.->|fetch schema| D
 ```
 
-## Quick Start
+## Quick Start (Imperative Style)
+
+This section demonstrates the standard imperative approach using `Emitter` and void consumer methods.
 
 ### 1. Add the dependency
 
@@ -49,41 +52,55 @@ Create `src/main/proto/order.proto`:
 syntax = "proto3";
 package com.example.orders;
 
-option java_package = "com.example.orders.proto";
-option java_outer_classname = "OrderProtos";
+option java_package = "com.example.orders.proto";    // (1) Generated Java package
+option java_outer_classname = "OrderProtos";         // (2) Wrapper class name
 
 message OrderEvent {
-  string order_id = 1;
+  string order_id = 1;                               // (3) Unique order identifier
   string customer_id = 2;
   double amount = 3;
-  int64 timestamp = 4;
-  map<string, string> metadata = 5;
+  int64 timestamp = 4;                               // (4) Unix timestamp in millis
+  map<string, string> metadata = 5;                  // (5) Extensible key-value pairs
 }
 ```
+
+1. **java_package** - Controls where generated Java classes are placed
+2. **java_outer_classname** - The outer class that contains all message classes
+3. **Field numbers** - Protobuf uses numbers (not names) for wire format; never reuse deleted field numbers
+4. **int64 for timestamps** - Use `int64` for epoch milliseconds; Protobuf has no native timestamp type
+5. **map type** - Native Protobuf map support for flexible metadata without schema changes
 
 ### 3. Create a producer
 
 ```java
-@ApplicationScoped
+@ApplicationScoped                                   // (1) CDI bean scope
 public class OrderProducer {
 
-    @Inject
-    @Channel("orders-out")
-    Emitter<OrderEvent> emitter;
+    @Inject                                          // (2) CDI injection
+    @Channel("orders-out")                           // (3) Channel name - links to config
+    Emitter<OrderEvent> emitter;                     // (4) Type-safe emitter for Protobuf
 
     public void sendOrder(String customerId, double amount) {
-        OrderEvent order = OrderEvent.newBuilder()
+        OrderEvent order = OrderEvent.newBuilder()   // (5) Protobuf builder pattern
                 .setOrderId(UUID.randomUUID().toString())
                 .setCustomerId(customerId)
                 .setAmount(amount)
                 .setTimestamp(System.currentTimeMillis())
                 .putMetadata("source", "order-service")
-                .build();
+                .build();                            // (6) Immutable message created
 
-        emitter.send(order);
+        emitter.send(order);                         // (7) Send to Kafka
     }
 }
 ```
+
+1. **@ApplicationScoped** - Single instance shared across the application
+2. **@Inject** - CDI injects the emitter at runtime
+3. **@Channel** - Binds to `mp.messaging.outgoing.orders-out.*` properties
+4. **Emitter&lt;OrderEvent&gt;** - Extension detects `OrderEvent extends MessageLite` and auto-configures serializer
+5. **newBuilder()** - Protobuf messages are immutable; use builder to construct
+6. **build()** - Validates required fields and creates immutable instance
+7. **send()** - Asynchronously sends to Kafka; message is serialized via `ProtobufKafkaSerializer`
 
 ### 4. Create a consumer
 
@@ -93,27 +110,35 @@ public class OrderConsumer {
 
     private static final Logger LOG = LoggerFactory.getLogger(OrderConsumer.class);
 
-    @Incoming("orders-in")
-    public void processOrder(OrderEvent order) {
+    @Incoming("orders-in")                           // (1) Channel name - links to config
+    public void processOrder(OrderEvent order) {    // (2) Protobuf type auto-detected
         LOG.info("Received order: {} for customer {} - ${}",
-                order.getOrderId(),
+                order.getOrderId(),                  // (3) Type-safe getter
                 order.getCustomerId(),
                 order.getAmount());
     }
 }
 ```
 
+1. **@Incoming** - Binds to `mp.messaging.incoming.orders-in.*` properties
+2. **OrderEvent parameter** - Extension detects Protobuf type and configures `ProtobufKafkaDeserializer`
+3. **Type-safe getters** - Generated code provides null-safe accessors; no casting required
+
 ### 5. Configure application.properties
 
 ```properties
 # Kafka connector (required for DevServices to detect channels)
-mp.messaging.outgoing.orders-out.connector=smallrye-kafka
+mp.messaging.outgoing.orders-out.connector=smallrye-kafka   # (1)
 mp.messaging.incoming.orders-in.connector=smallrye-kafka
 
 # Topic configuration
-mp.messaging.outgoing.orders-out.topic=orders
-mp.messaging.incoming.orders-in.topic=orders
+mp.messaging.outgoing.orders-out.topic=orders               # (2)
+mp.messaging.incoming.orders-in.topic=orders                # (3)
 ```
+
+1. **connector** - Required; tells Quarkus this channel uses Kafka (enables DevServices)
+2. **topic (outgoing)** - Kafka topic name; if omitted, defaults to channel name (`orders-out`)
+3. **topic (incoming)** - Must match producer's topic to receive messages
 
 ### 6. Run it!
 
@@ -122,6 +147,116 @@ mp.messaging.incoming.orders-in.topic=orders
 ```
 
 DevServices automatically starts Kafka and Apicurio Registry. That's it!
+
+---
+
+## Reactive Style with Mutiny
+
+For reactive applications, the extension fully supports Mutiny's `Multi` and `Uni` types. This enables backpressure-aware streaming and non-blocking consumers.
+
+```mermaid
+flowchart LR
+    subgraph Reactive Producer
+        BP[BroadcastProcessor] --> M[Multi&lt;Proto&gt;]
+        M --> S[ProtobufSerializer]
+    end
+
+    S --> K[(Kafka Topic)]
+
+    subgraph Reactive Consumer
+        D[ProtobufDeserializer] --> U[Uni&lt;Void&gt;]
+        U --> A[Async Processing]
+    end
+
+    K --> D
+```
+
+### Mutiny Producer
+
+```java
+@ApplicationScoped
+public class OrderStreamProducer {
+
+    private final BroadcastProcessor<OrderEvent> processor =
+            BroadcastProcessor.create();             // (1) Hot stream source
+
+    @Outgoing("orders-stream")                       // (2) Reactive outgoing channel
+    public Multi<OrderEvent> produceOrders() {      // (3) Returns reactive stream
+        return processor;                            // (4) Emits when items pushed
+    }
+
+    public void send(OrderEvent order) {
+        processor.onNext(order);                     // (5) Push to stream
+    }
+
+    public void complete() {
+        processor.onComplete();                      // (6) Signal end of stream
+    }
+}
+```
+
+1. **BroadcastProcessor** - Hot stream that multicasts items to all subscribers; items pushed via `onNext()`
+2. **@Outgoing** - Method return type is the message stream (not `void` like imperative style)
+3. **Multi&lt;OrderEvent&gt;** - Extension detects Protobuf in generic type and configures serializer
+4. **return processor** - SmallRye subscribes to this Multi and sends each item to Kafka
+5. **onNext()** - Push items into the stream; they flow through to Kafka asynchronously
+6. **onComplete()** - Signals no more items; use for graceful shutdown
+
+### Mutiny Consumer
+
+```java
+@ApplicationScoped
+public class OrderStreamConsumer {
+
+    private static final Logger LOG = LoggerFactory.getLogger(OrderStreamConsumer.class);
+
+    private final List<OrderEvent> received = new CopyOnWriteArrayList<>();
+
+    @Incoming("orders-stream-in")                    // (1) Reactive incoming channel
+    public Uni<Void> processOrder(OrderEvent order) { // (2) Async acknowledgment
+        return Uni.createFrom().item(order)          // (3) Wrap in Uni for composition
+                .invoke(o -> {                       // (4) Side-effect processing
+                    LOG.info("Processing order: {}", o.getOrderId());
+                    received.add(o);
+                })
+                .replaceWithVoid();                  // (5) Signal completion
+    }
+
+    public List<OrderEvent> getReceived() {
+        return received;
+    }
+}
+```
+
+1. **@Incoming** - Same as imperative, but method signature differs
+2. **Uni&lt;Void&gt; return** - Enables async processing; message acked when Uni completes
+3. **Uni.createFrom().item()** - Wraps the message in a reactive pipeline
+4. **invoke()** - Performs side effects (logging, storing) without transforming the item
+5. **replaceWithVoid()** - Discards the item and signals successful processing; triggers Kafka offset commit
+
+### Mutiny Configuration
+
+```properties
+# Reactive channels
+mp.messaging.outgoing.orders-stream.connector=smallrye-kafka
+mp.messaging.incoming.orders-stream-in.connector=smallrye-kafka
+mp.messaging.outgoing.orders-stream.topic=orders-reactive      # (1)
+mp.messaging.incoming.orders-stream-in.topic=orders-reactive   # (2)
+```
+
+1. **Outgoing topic** - Both channels must use the same topic name
+2. **Incoming topic** - Matches outgoing to receive the same messages
+
+### When to Use Mutiny vs Imperative
+
+| Pattern | Use When |
+|---------|----------|
+| **Emitter (imperative)** | Request-response flows, sending from REST endpoints, simple fire-and-forget |
+| **Multi (reactive producer)** | Streaming data sources, event sourcing, continuous data feeds |
+| **void return (imperative consumer)** | Simple processing, blocking operations acceptable |
+| **Uni return (reactive consumer)** | Async processing, non-blocking I/O, backpressure control |
+
+---
 
 ## How It Works
 
@@ -188,7 +323,7 @@ mp.messaging.connector.smallrye-kafka.apicurio.registry.artifact-resolver-strate
 | Property | Default | Description |
 |----------|---------|-------------|
 | `quarkus.apicurio-registry.protobuf.devservices.enabled` | `true` | Enable/disable DevServices |
-| `quarkus.apicurio-registry.protobuf.devservices.image-name` | `apicurio/apicurio-registry:3.0.0` | Container image |
+| `quarkus.apicurio-registry.protobuf.devservices.image-name` | `apicurio/apicurio-registry:3.1.4` | Container image |
 | `quarkus.apicurio-registry.protobuf.devservices.port` | Random | Fixed port (optional) |
 
 ## Running in Production
@@ -211,7 +346,7 @@ services:
       LOG_DIR: "/tmp/logs"
 
   apicurio-registry:
-    image: apicurio/apicurio-registry:3.0.0
+    image: apicurio/apicurio-registry:3.1.4
     ports:
       - "8081:8080"
     environment:
@@ -242,7 +377,7 @@ mp.messaging.outgoing.orders-out.topic=orders
 mp.messaging.incoming.orders-in.connector=smallrye-kafka
 mp.messaging.incoming.orders-in.topic=orders
 
-# Inventory events
+# Inventory events (different Protobuf type auto-detected)
 mp.messaging.outgoing.inventory-out.connector=smallrye-kafka
 mp.messaging.outgoing.inventory-out.topic=inventory
 mp.messaging.incoming.inventory-in.connector=smallrye-kafka
@@ -275,6 +410,13 @@ If Kafka or Registry containers don't start:
 1. Verify Docker is running
 2. Check `quarkus.apicurio-registry.protobuf.devservices.enabled=true`
 3. Ensure `connector=smallrye-kafka` is set for your channels
+
+### Mutiny stream not emitting
+
+If your `Multi` producer isn't sending messages:
+1. Verify the `@Outgoing` method is being called (add logging)
+2. Check that `BroadcastProcessor.onNext()` is called after subscription
+3. Ensure the channel is properly wired in `application.properties`
 
 ## Requirements
 

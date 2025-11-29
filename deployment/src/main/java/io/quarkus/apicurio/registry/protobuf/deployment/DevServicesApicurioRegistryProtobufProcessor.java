@@ -35,7 +35,7 @@ public class DevServicesApicurioRegistryProtobufProcessor {
     private static final int APICURIO_REGISTRY_PORT = 8080;
     private static final String APICURIO_REGISTRY_URL_CONFIG = "mp.messaging.connector.smallrye-kafka.apicurio.registry.url";
     private static final String DEV_SERVICE_LABEL = "quarkus-dev-service-apicurio-registry-protobuf";
-    private static final String DEFAULT_IMAGE = "apicurio/apicurio-registry:3.0.6";
+    private static final String DEFAULT_IMAGE = "apicurio/apicurio-registry:3.1.4";
 
     static volatile RunningDevService devService;
     static volatile ApicurioRegistryDevServiceCfg cfg;
