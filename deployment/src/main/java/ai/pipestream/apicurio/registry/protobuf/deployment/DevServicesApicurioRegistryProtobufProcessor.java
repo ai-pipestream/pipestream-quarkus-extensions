@@ -62,6 +62,7 @@ public class DevServicesApicurioRegistryProtobufProcessor {
     private static final String DEV_SERVICE_NAME = "apicurio-registry-protobuf";
     private static final int APICURIO_REGISTRY_PORT = 8080;
     private static final String APICURIO_REGISTRY_URL_CONFIG = "mp.messaging.connector.smallrye-kafka.apicurio.registry.url";
+    private static final String APICURIO_REGISTRY_URL_SIMPLE = "apicurio.registry.url";
     private static final String DEV_SERVICE_LABEL = "quarkus-dev-service-apicurio-registry-protobuf";
     private static final String DEFAULT_IMAGE = "apicurio/apicurio-registry:3.1.4";
 
@@ -175,7 +176,12 @@ public class DevServicesApicurioRegistryProtobufProcessor {
 
     private Map<String, String> getRegistryUrlConfigs(String baseUrl) {
         // Use v3 API endpoint for Apicurio v3
-        return Map.of(APICURIO_REGISTRY_URL_CONFIG, baseUrl + "/apis/registry/v3");
+        String fullUrl = baseUrl + "/apis/registry/v3";
+        // Set both the connector-level config and the simpler apicurio.registry.url
+        // This ensures both Kafka serializers and any direct Apicurio clients work
+        return Map.of(
+                APICURIO_REGISTRY_URL_CONFIG, fullUrl,
+                APICURIO_REGISTRY_URL_SIMPLE, fullUrl);
     }
 
     private void shutdownApicurioRegistry() {
@@ -204,8 +210,15 @@ public class DevServicesApicurioRegistryProtobufProcessor {
             return null;
         }
 
+        // Check both the connector-level URL and the simpler apicurio.registry.url property
         if (isPropertySet(APICURIO_REGISTRY_URL_CONFIG)) {
             log.debug("Not starting dev services for Apicurio Registry, " + APICURIO_REGISTRY_URL_CONFIG
+                    + " is configured.");
+            return null;
+        }
+
+        if (isPropertySet(APICURIO_REGISTRY_URL_SIMPLE)) {
+            log.debug("Not starting dev services for Apicurio Registry, " + APICURIO_REGISTRY_URL_SIMPLE
                     + " is configured.");
             return null;
         }
