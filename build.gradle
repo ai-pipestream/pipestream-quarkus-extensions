@@ -32,11 +32,6 @@ subprojects {
     apply plugin: 'maven-publish'
     apply plugin: 'signing'
 
-    repositories {
-        mavenCentral()
-        mavenLocal()
-    }
-
     group = rootProject.group
     version = scmVersion.version
 
@@ -78,6 +73,7 @@ subprojects {
             }
         }
         repositories {
+            mavenLocal()
             maven {
                 name = "GitHubPackages"
                 url = "https://maven.pkg.github.com/ai-pipestream/quarkus-apicurio-registry-protobuf"
