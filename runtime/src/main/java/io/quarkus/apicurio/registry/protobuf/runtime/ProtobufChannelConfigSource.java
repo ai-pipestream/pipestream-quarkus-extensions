@@ -112,6 +112,7 @@ public class ProtobufChannelConfigSource implements ConfigSource {
         for (String s : outgoing) {
             outgoingChannels.put(s, s);
         }
+        enabled = true;  // Enable the config source after channels are set
     }
 
     private void buildProperties() {

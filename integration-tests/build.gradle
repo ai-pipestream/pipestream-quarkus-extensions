@@ -75,6 +75,20 @@ compileTestJava {
     options.encoding = 'UTF-8'
 }
 
+// Ensure artifacts that consume generated sources wait for generation
+tasks.named('sourcesJar') {
+    dependsOn 'quarkusGenerateCode'
+}
+
+tasks.named('javadoc') {
+    dependsOn 'quarkusGenerateCode'
+    // Exclude generated classes directory from Javadoc to avoid warnings
+    exclude '**/quarkus-generated-sources/**'
+    // Relax doclint because some dependencies/generators may emit incomplete Javadoc
+    options.addBooleanOption('Xdoclint:none', true)
+    options.encoding = 'UTF-8'
+}
+
 // Configure Javadoc to avoid warnings/errors from generated sources
 tasks.withType(Javadoc).configureEach {
     // Exclude Quarkus-generated gRPC/protobuf classes from Javadoc
