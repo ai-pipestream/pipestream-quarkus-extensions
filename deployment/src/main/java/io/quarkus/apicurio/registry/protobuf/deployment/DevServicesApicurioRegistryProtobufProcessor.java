@@ -152,7 +152,7 @@ public class DevServicesApicurioRegistryProtobufProcessor {
             DockerStatusBuildItem dockerStatusBuildItem,
             ApicurioRegistryDevServiceCfg config,
             LaunchModeBuildItem launchMode,
-            Optional<Duration> timeout) {
+            @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Duration> timeout) {
 
         if (!config.devServicesEnabled) {
             log.debug("Not starting dev services for Apicurio Registry, as it has been disabled in the config.");
@@ -264,6 +264,7 @@ public class DevServicesApicurioRegistryProtobufProcessor {
     private static final class ApicurioRegistryContainer extends GenericContainer<ApicurioRegistryContainer> {
         private final int fixedExposedPort;
 
+        @SuppressWarnings("resource")
         private ApicurioRegistryContainer(DockerImageName dockerImageName, int fixedExposedPort, String serviceName) {
             super(dockerImageName);
             this.fixedExposedPort = fixedExposedPort;

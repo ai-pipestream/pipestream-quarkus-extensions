@@ -15,6 +15,7 @@ import java.util.Optional;
  * Protobuf serializer and deserializer, including artifact registration and lookup strategies.
  * </p>
  */
+@SuppressWarnings("unused")
 @ConfigMapping(prefix = "quarkus.apicurio-registry.protobuf")
 @ConfigRoot(phase = ConfigPhase.RUN_TIME)
 public interface ApicurioRegistryProtobufConfig {

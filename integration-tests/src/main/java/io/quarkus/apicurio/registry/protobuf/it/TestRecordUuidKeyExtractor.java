@@ -47,6 +47,7 @@ public class TestRecordUuidKeyExtractor implements UuidKeyExtractor<TestRecord> 
     @Override
     public UUID extractKey(TestRecord message) {
         String id = message.getId();
+        //noinspection ConstantValue
         if (id == null || id.isEmpty()) {
             throw new IllegalArgumentException("TestRecord.id is required for key extraction");
         }

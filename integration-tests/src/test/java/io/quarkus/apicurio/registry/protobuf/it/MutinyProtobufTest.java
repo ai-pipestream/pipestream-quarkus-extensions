@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration test for Mutiny-based Protobuf serialization/deserialization.
- *
+ * <p>
  * This test verifies:
  * 1. @Outgoing with Multi<TestRecord> works with auto-configured serializer
  * 2. @Incoming with Uni<Void> return works with auto-configured deserializer
@@ -57,7 +57,7 @@ class MutinyProtobufTest {
                 .until(() -> !consumer.getReceived().isEmpty());
 
         // Verify the received message
-        TestRecord received = consumer.getReceived().get(0);
+        TestRecord received = consumer.getReceived().getFirst();
         assertNotNull(received);
         assertEquals(testId, received.getId());
         assertEquals(testName, received.getName());
