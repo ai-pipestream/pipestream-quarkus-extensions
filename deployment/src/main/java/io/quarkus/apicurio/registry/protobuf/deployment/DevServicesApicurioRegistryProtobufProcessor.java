@@ -67,7 +67,7 @@ public class DevServicesApicurioRegistryProtobufProcessor {
             LaunchModeBuildItem launchMode,
             DockerStatusBuildItem dockerStatusBuildItem,
             ApicurioRegistryProtobufBuildTimeConfig config,
-            Optional<ConsoleInstalledBuildItem> consoleInstalledBuildItem,
+            @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<ConsoleInstalledBuildItem> consoleInstalledBuildItem,
             CuratedApplicationShutdownBuildItem closeBuildItem,
             LoggingSetupBuildItem loggingSetupBuildItem,
             DevServicesConfig devServicesConfig) {
