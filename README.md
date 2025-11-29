@@ -27,7 +27,7 @@ flowchart LR
     S -.->|register schema| R[(Apicurio Registry)]
 
     subgraph Consumer Service
-        D[ProtobufDeserializer] --> C[@Incoming]
+        D[ProtobufDeserializer] --> C["@Incoming"]
         C --> A[Java App]
     end
 
