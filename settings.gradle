@@ -1,0 +1,15 @@
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    plugins {
+        id 'io.quarkus.extension' version "${quarkusVersion}"
+    }
+}
+
+rootProject.name = 'quarkus-apicurio-registry-protobuf'
+
+include 'runtime'
+include 'deployment'
+include 'integration-tests'

@@ -1,0 +1,36 @@
+package io.quarkus.apicurio.registry.protobuf.it;
+
+import io.quarkus.apicurio.registry.protobuf.it.proto.TestRecord;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * Consumer that receives protobuf messages from Kafka.
+ * With derive.class=true, the deserializer derives the class from the schema
+ * and returns the actual TestRecord type.
+ */
+@ApplicationScoped
+public class TestRecordConsumer {
+
+    private static final Logger LOG = LoggerFactory.getLogger(TestRecordConsumer.class);
+
+    private final CopyOnWriteArrayList<TestRecord> received = new CopyOnWriteArrayList<>();
+
+    @Incoming("test-in")
+    public void consume(TestRecord message) {
+        LOG.info("Received message: id={}, name={}", message.getId(), message.getName());
+        received.add(message);
+    }
+
+    public CopyOnWriteArrayList<TestRecord> getReceived() {
+        return received;
+    }
+
+    public void clear() {
+        received.clear();
+    }
+}

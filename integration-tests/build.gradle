@@ -1,0 +1,76 @@
+plugins {
+    id 'java'
+    id 'io.quarkus' version "${quarkusVersion}"
+}
+
+dependencies {
+    // Quarkus BOM
+    implementation platform("io.quarkus:quarkus-bom:${quarkusVersion}")
+
+    // Our extension
+    implementation project(':runtime')
+
+    // Quarkus core
+    implementation 'io.quarkus:quarkus-arc'
+    implementation 'io.quarkus:quarkus-messaging-kafka'
+
+    // Quarkus gRPC for proto compilation
+    implementation 'io.quarkus:quarkus-grpc'
+
+    // Apicurio Registry Protobuf Serde
+    implementation "io.apicurio:apicurio-registry-protobuf-serde-kafka:${apicurioVersion}"
+
+    // Test dependencies
+    testImplementation 'io.quarkus:quarkus-junit5'
+    testImplementation 'io.rest-assured:rest-assured'
+    testImplementation 'org.awaitility:awaitility'
+
+    // Our deployment module provides DevServices for Apicurio Registry
+    testImplementation project(':deployment')
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+// Ensure Quarkus gRPC codegen runs before compilation
+tasks.named('compileJava') {
+    dependsOn 'quarkusGenerateCode'
+}
+
+tasks.named('compileTestJava') {
+    dependsOn 'quarkusGenerateCode'
+}
+
+// Help the IDE see Quarkus-generated gRPC sources
+sourceSets {
+    main {
+        java {
+            srcDirs += file('build/classes/java/quarkus-generated-sources/grpc')
+        }
+    }
+}
+
+plugins.withId('idea') {
+    idea {
+        module {
+            sourceDirs += file('build/classes/java/quarkus-generated-sources/grpc')
+            generatedSourceDirs += file('build/classes/java/quarkus-generated-sources/grpc')
+        }
+    }
+}
+
+test {
+    systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
+    jvmArgs "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+}

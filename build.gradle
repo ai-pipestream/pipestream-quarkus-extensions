@@ -1,0 +1,13 @@
+plugins {
+    id 'base'
+}
+
+subprojects {
+    repositories {
+        mavenCentral()
+        mavenLocal()
+    }
+
+    group = rootProject.group
+    version = rootProject.version
+}
