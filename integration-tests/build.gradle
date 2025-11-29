@@ -103,3 +103,11 @@ javadoc {
     exclude '**/proto/**'
     options.addStringOption('Xdoclint:none', '-quiet')
 }
+
+// Don't publish integration tests
+tasks.withType(PublishToMavenRepository).configureEach {
+    enabled = false
+}
+tasks.withType(PublishToMavenLocal).configureEach {
+    enabled = false
+}

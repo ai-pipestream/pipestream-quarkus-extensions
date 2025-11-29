@@ -40,13 +40,20 @@ subprojects {
         withJavadocJar()
     }
 
+    // Compute proper artifact names based on project
+    ext {
+        baseArtifactName = 'quarkus-apicurio-registry-protobuf'
+        publishedArtifactId = project.name == 'runtime' ? baseArtifactName : "${baseArtifactName}-${project.name}"
+    }
+
     publishing {
         publications {
             create('maven', MavenPublication) {
                 from components.java
-                
+                artifactId = publishedArtifactId
+
                 pom {
-                    name = project.name
+                    name = publishedArtifactId
                     description = 'Quarkus Extension for Apicurio Registry Protobuf'
                     url = 'https://github.com/ai-pipestream/quarkus-apicurio-registry-protobuf'
 
