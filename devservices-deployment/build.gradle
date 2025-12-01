@@ -69,9 +69,10 @@ publishing {
     publications {
         create('maven', MavenPublication) {
             from components.java
+            artifactId = 'pipestream-quarkus-devservices-deployment'
 
             pom {
-                name = project.name
+                name = 'pipestream-quarkus-devservices-deployment'
                 description = 'Quarkus extension for Pipeline DevServices - Deployment'
                 url = 'https://github.com/ai-pipestream/pipestream-quarkus-devservices'
 
