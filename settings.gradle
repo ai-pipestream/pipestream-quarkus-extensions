@@ -40,5 +40,5 @@ dependencyResolutionManagement {
 }
 
 // devservices modules
-include 'devservices'
-include 'devservices-deployment'
+include 'pipestream-quarkus-devservices'
+include 'pipestream-quarkus-devservices-deployment'

@@ -1,12 +1,17 @@
 plugins {
-    id 'java-library'
+    alias(libs.plugins.java.library)
+    alias(libs.plugins.quarkus.extension)
     id 'maven-publish'
     id 'signing'
 }
 
-description = 'Quarkus Pipeline DevServices Extension - Deployment'
+description = 'Quarkus Pipeline DevServices Extension - Runtime'
 
 def javaVersion = 21
+
+quarkusExtension {
+    deploymentModule = 'pipestream-quarkus-devservices-deployment'
+}
 
 java {
     toolchain {
@@ -21,14 +26,14 @@ dependencies {
     implementation platform(libs.quarkus.bom)
 
     // Quarkus BOM version comes from parent platform BOM
-    implementation project(':devservices')
-    implementation 'io.quarkus:quarkus-arc-deployment'
+    implementation 'io.quarkus:quarkus-core'
+    implementation 'io.quarkus:quarkus-arc'
 
-    // Annotation processor for extension metadata (usually enabled by the plugin)
+    // Annotation processor for extension metadata (usually enabled by the plugin, added here explicitly)
     annotationProcessor 'io.quarkus:quarkus-extension-processor'
 
     // Test dependencies
-    testImplementation 'io.quarkus:quarkus-junit5-internal'
+    implementation 'io.quarkus:quarkus-test-common'
     testImplementation 'org.junit.jupiter:junit-jupiter-api'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
     testImplementation 'org.hamcrest:hamcrest'
@@ -65,15 +70,21 @@ tasks.withType(Javadoc).configureEach { t ->
     t.exclude('**/internal/**', '**/impl/**', '**/test/**')
 }
 
+// Workaround for Gradle 9: disable validateExtension which performs unsafe configuration resolution
+// The extensionDescriptor task will still run without validation
+tasks.matching { it.name == 'validateExtension' }.configureEach {
+    enabled = false
+}
+
 publishing {
     publications {
         create('maven', MavenPublication) {
             from components.java
-            artifactId = 'pipestream-quarkus-devservices-deployment'
+            artifactId = 'pipestream-quarkus-devservices'
 
             pom {
-                name = 'pipestream-quarkus-devservices-deployment'
-                description = 'Quarkus extension for Pipeline DevServices - Deployment'
+                name = 'pipestream-quarkus-devservices'
+                description = 'Quarkus extension for Pipeline DevServices - Runtime'
                 url = 'https://github.com/ai-pipestream/pipestream-quarkus-devservices'
 
                 licenses {
