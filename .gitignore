@@ -19,3 +19,18 @@ gradle-app.setting
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+.idea
+
+out
+*.iml
+*.iws
+.DS_Store
+target
+.vscode
+.build/
+.settings
+.mvn/wrapper/maven-wrapper.jar
+.quarkus
+bin/
+.dev-helpers/
+.claude
