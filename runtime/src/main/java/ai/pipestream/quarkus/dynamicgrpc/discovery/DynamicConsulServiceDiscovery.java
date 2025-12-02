@@ -153,7 +153,7 @@ public class DynamicConsulServiceDiscovery implements ServiceDiscovery {
                     return serviceList.getList();
                 })
                 .onFailure().invoke(error ->
-                        LOG.errorf("Failed to query Consul for service '%s'", serviceName, error)
+                        LOG.errorf(error, "Failed to query Consul for service '%s'", serviceName)
                 )
                 .map(list -> (List<ServiceEntry>) list);
     }
@@ -180,7 +180,11 @@ public class DynamicConsulServiceDiscovery implements ServiceDiscovery {
             if (numericId.isEmpty()) {
                 return 0L;
             }
-            return Long.parseLong(numericId.substring(0, Math.min(8, numericId.length())));
+            try {
+                return Long.parseLong(numericId.substring(0, Math.min(8, numericId.length())));
+            } catch (NumberFormatException e) {
+                return 0L;
+            }
         }
 
         @Override
