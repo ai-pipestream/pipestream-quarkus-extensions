@@ -1,0 +1,102 @@
+plugins {
+    id 'java'
+    id 'io.quarkus'
+}
+
+description = 'Quarkus Dynamic gRPC Extension - Integration Tests'
+
+dependencies {
+    // Quarkus BOM
+    implementation platform("io.quarkus:quarkus-bom:${quarkusVersion}")
+
+    // Our extension
+    implementation project(':runtime')
+
+    // Quarkus core
+    implementation 'io.quarkus:quarkus-arc'
+    implementation 'io.quarkus:quarkus-grpc'
+    implementation 'io.quarkus:quarkus-vertx'
+
+    // Test dependencies
+    testImplementation 'io.quarkus:quarkus-junit5'
+    testImplementation 'io.rest-assured:rest-assured'
+    testImplementation 'org.awaitility:awaitility'
+
+    // TestContainers for Consul
+    testImplementation "org.testcontainers:testcontainers:${testcontainersVersion}"
+    testImplementation "org.testcontainers:consul:${testcontainersVersion}"
+    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
+
+    // Our deployment module provides build-time setup
+    testImplementation project(':deployment')
+
+    // JUnit Platform launcher for Gradle 9
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
+    jvmArgs "--add-opens", "java.base/java.lang=ALL-UNNAMED"
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+    }
+}
+
+// Disable full Quarkus app build for integration tests 
+// The tests run fine, but the full app build has JDK version issues
+tasks.matching { it.name in ['quarkusBuild', 'quarkusAppPartsBuild', 'quarkusBuildAppModel', 'quarkusDependenciesBuild'] }.configureEach {
+    enabled = false
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+}
+
+// Ensure artifacts that consume generated sources wait for generation
+tasks.named('sourcesJar') {
+    dependsOn 'quarkusGenerateCode'
+}
+
+tasks.named('javadoc') {
+    dependsOn 'quarkusGenerateCode'
+    // Exclude generated classes directory from Javadoc to avoid warnings
+    exclude '**/quarkus-generated-sources/**'
+    // Relax doclint because some dependencies/generators may emit incomplete Javadoc
+    options.addBooleanOption('Xdoclint:none', true)
+    options.encoding = 'UTF-8'
+}
+
+// Configure Javadoc to avoid warnings/errors from generated sources
+tasks.withType(Javadoc).configureEach {
+    // Exclude Quarkus-generated gRPC/protobuf classes from Javadoc
+    exclude('ai/pipestream/quarkus/dynamicgrpc/it/proto/**')
+
+    options.encoding = 'UTF-8'
+    // Generated sources often lack full Javadoc; disable strict doclint
+    options.addBooleanOption('Xdoclint:none', true)
+}
+
+javadoc {
+    exclude '**/proto/**'
+    options.addStringOption('Xdoclint:none', '-quiet')
+}
+
+// Don't publish integration tests
+tasks.withType(PublishToMavenRepository).configureEach {
+    enabled = false
+}
+tasks.withType(PublishToMavenLocal).configureEach {
+    enabled = false
+}

@@ -1,0 +1,198 @@
+package ai.pipestream.quarkus.dynamicgrpc;
+
+import io.grpc.Channel;
+import io.grpc.EquivalentAddressGroup;
+import io.grpc.NameResolver;
+import io.grpc.NameResolverProvider;
+import io.quarkus.grpc.MutinyStub;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.stork.Stork;
+import io.smallrye.stork.api.Service;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
+
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+/**
+ * Factory for creating Mutiny gRPC clients using dynamic service discovery.
+ * <p>
+ * This factory ensures the service is defined in Stork, discovers instances,
+ * obtains a Channel from ChannelManager, and produces Mutiny stubs on demand.
+ * </p>
+ */
+@ApplicationScoped
+public class DynamicGrpcClientFactory implements GrpcClientFactory {
+
+    /**
+     * Default constructor for CDI frameworks.
+     */
+    public DynamicGrpcClientFactory() {
+    }
+
+    private static final Logger LOG = Logger.getLogger(DynamicGrpcClientFactory.class);
+
+    @Inject
+    ServiceDiscoveryManager serviceDiscoveryManager;
+
+    @Inject
+    ChannelManager channelManager;
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <T extends MutinyStub> Uni<T> getClient(String serviceName, Function<Channel, T> stubCreator) {
+        validateServiceName(serviceName);
+        return getChannel(serviceName).map(stubCreator::apply);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Uni<Channel> getChannel(String serviceName) {
+        if (serviceName == null || serviceName.isBlank()) {
+            return Uni.createFrom().failure(new IllegalArgumentException("Service name must not be null or blank"));
+        }
+
+        return serviceDiscoveryManager.ensureServiceDefined(serviceName)
+                .chain(ignored -> {
+                    LOG.debugf("Step 1: Service %s defined", serviceName);
+                    return serviceDiscoveryManager.getServiceInstances(serviceName);
+                })
+                .chain(instances -> {
+                    LOG.debugf("Step 2: Got %d instances for %s", instances.size(), serviceName);
+                    return channelManager.getOrCreateChannel(serviceName, instances);
+                });
+    }
+
+    private void validateServiceName(String serviceName) {
+        if (serviceName == null || serviceName.isBlank()) {
+            throw new IllegalArgumentException("Service name must not be null or blank");
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getActiveServiceCount() {
+        return channelManager.getActiveServiceCount();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void evictChannel(String serviceName) {
+        channelManager.evictChannel(serviceName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getCacheStats() {
+        return channelManager.getCacheStats();
+    }
+
+    /**
+     * NameResolverProvider that uses SmallRye Stork to resolve service instances
+     * for a logical service name into gRPC address groups.
+     */
+    public static class StorkNameResolverProvider extends NameResolverProvider {
+        private final String serviceName;
+
+        /**
+         * Creates a new StorkNameResolverProvider.
+         *
+         * @param serviceName the logical service name to resolve
+         */
+        public StorkNameResolverProvider(String serviceName) {
+            this.serviceName = serviceName;
+        }
+
+        @Override
+        protected boolean isAvailable() {
+            return true;
+        }
+
+        @Override
+        protected int priority() {
+            return 5;
+        }
+
+        @Override
+        public NameResolver newNameResolver(URI targetUri, NameResolver.Args args) {
+            return new StorkNameResolver(serviceName);
+        }
+
+        @Override
+        public String getDefaultScheme() {
+            return "stork";
+        }
+    }
+
+    /**
+     * NameResolver implementation that uses Stork for service instance resolution.
+     */
+    public static class StorkNameResolver extends NameResolver {
+        private final String serviceName;
+        private Listener2 listener;
+
+        /**
+         * Creates a new StorkNameResolver.
+         *
+         * @param serviceName the logical service name to resolve
+         */
+        public StorkNameResolver(String serviceName) {
+            this.serviceName = serviceName;
+        }
+
+        @Override
+        public String getServiceAuthority() {
+            return serviceName;
+        }
+
+        @Override
+        public void start(Listener2 listener) {
+            this.listener = listener;
+            resolve();
+        }
+
+        @Override
+        public void refresh() {
+            resolve();
+        }
+
+        private void resolve() {
+            try {
+                Service service = Stork.getInstance().getService(serviceName);
+                service.getInstances().onItem().invoke(instances -> {
+                    if (instances.isEmpty()) {
+                        Logger.getLogger(StorkNameResolver.class).warnf("No instances found for service: %s", serviceName);
+                        listener.onError(io.grpc.Status.UNAVAILABLE.withDescription("No instances found for service " + serviceName));
+                    } else {
+                        List<EquivalentAddressGroup> addresses = instances.stream()
+                                .map(i -> new EquivalentAddressGroup(new InetSocketAddress(i.getHost(), i.getPort())))
+                                .collect(Collectors.toList());
+                        listener.onResult(ResolutionResult.newBuilder().setAddresses(addresses).build());
+                    }
+                }).subscribe().asCompletionStage();
+            } catch (Exception e) {
+                Logger.getLogger(StorkNameResolver.class).errorf(e, "Failed to resolve service instances for %s", serviceName);
+                listener.onError(io.grpc.Status.INTERNAL.withCause(e).withDescription("Failed to resolve instances"));
+            }
+        }
+
+        @Override
+        public void shutdown() {
+            // Cleanup if needed
+        }
+    }
+}
