@@ -53,6 +53,8 @@ public class DynamicGrpcProcessor {
                         ServiceDiscoveryManager.class,
                         // Configuration
                         ai.pipestream.quarkus.dynamicgrpc.config.DynamicGrpcTlsAdapter.class,
+                        // Authentication
+                        ai.pipestream.quarkus.dynamicgrpc.auth.AuthMetadataInterceptor.class,
                         // Metrics
                         DynamicGrpcMetrics.class,
                         // Discovery components

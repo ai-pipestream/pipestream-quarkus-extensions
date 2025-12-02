@@ -26,6 +26,11 @@ public interface DynamicGrpcConfig {
     TlsConfig tls();
 
     /**
+     * Authentication configuration for all dynamic gRPC clients.
+     */
+    AuthConfig auth();
+
+    /**
      * Consul configuration for service discovery.
      */
     ConsulConfig consul();
@@ -98,6 +103,27 @@ public interface DynamicGrpcConfig {
          * List of certificate files (PEM format).
          */
         Optional<List<String>> certs();
+    }
+
+    interface AuthConfig {
+        /**
+         * Whether authentication is enabled for dynamic gRPC clients.
+         */
+        @WithDefault("false")
+        boolean enabled();
+
+        /**
+         * The header name to use for the authentication token.
+         */
+        @WithDefault("Authorization")
+        String headerName();
+
+        /**
+         * The scheme prefix to prepend to the token value.
+         * For example, "Bearer " will result in "Authorization: Bearer {token}"
+         */
+        @WithDefault("Bearer ")
+        String schemePrefix();
     }
 
     interface ConsulConfig {

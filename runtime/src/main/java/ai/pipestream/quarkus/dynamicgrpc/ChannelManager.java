@@ -1,5 +1,6 @@
 package ai.pipestream.quarkus.dynamicgrpc;
 
+import ai.pipestream.quarkus.dynamicgrpc.auth.AuthMetadataInterceptor;
 import ai.pipestream.quarkus.dynamicgrpc.config.DynamicGrpcConfig;
 import ai.pipestream.quarkus.dynamicgrpc.config.DynamicGrpcTlsAdapter;
 import ai.pipestream.quarkus.dynamicgrpc.exception.ChannelCreationException;
@@ -9,6 +10,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import io.grpc.Channel;
+import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannel;
 import io.quarkus.grpc.runtime.stork.StorkGrpcChannel;
 import io.quarkus.grpc.runtime.config.GrpcClientConfiguration;
@@ -68,6 +70,9 @@ public class ChannelManager {
 
     @Inject
     DynamicGrpcTlsAdapter tlsConfig;
+
+    @Inject
+    AuthMetadataInterceptor authInterceptor;
 
     private Cache<String, Channel> channelCache;
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
@@ -234,6 +239,13 @@ public class ChannelManager {
             GrpcClient grpcClient = GrpcClient.client(vertx, clientOptions);
 
             Channel created = getChannel(serviceName, grpcClient);
+
+            // Wrap channel with auth interceptor if auth is enabled
+            if (config.auth().enabled()) {
+                created = ClientInterceptors.intercept(created, authInterceptor);
+                LOG.debugf("Auth interceptor applied to channel for service: %s", serviceName);
+            }
+
             LOG.debugf("Created StorkGrpcChannel for %s", serviceName);
             channelCache.put(serviceName, created);
 
