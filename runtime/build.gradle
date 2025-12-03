@@ -46,17 +46,45 @@ protobuf {
         grpc {
             artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
         }
-        mutiny {
-            artifact = "io.quarkus:quarkus-grpc-protoc-plugin:${quarkusVersion}"
-        }
     }
     generateProtoTasks {
         all()*.plugins {
             grpc {}
-            mutiny {}
         }
     }
 }
+
+configurations {
+    mutinyGen
+}
+
+dependencies {
+    mutinyGen "io.quarkus:quarkus-grpc-protoc-plugin:${quarkusVersion}"
+}
+
+task copyMutinyLibs(type: Copy) {
+    from configurations.mutinyGen
+    into "$buildDir/generator-libs"
+}
+
+task generateMutinyStubs {
+    dependsOn 'syncProtos', 'copyMutinyLibs'
+    
+    doLast {
+        // Ensure the script is executable (fixes issue where chmod might hang or fail)
+        file('../scripts/protoc-gen-mutiny').setExecutable(true)
+        file("$buildDir/generated/source/proto/main/mutiny").mkdirs()
+        file("$buildDir/generated/buf-test/grpc").mkdirs()
+
+        def bufExecutable = configurations.getByName('bufTool').singleFile
+        exec {
+            commandLine bufExecutable, 'generate', 'buf.build/pipestreamai/registration', '--template', 'buf.gen.yaml'
+        }
+    }
+}
+
+// Hook into the build
+tasks.named('compileJava').configure { dependsOn 'generateMutinyStubs' }
 
 // 5. Point protobuf plugin to exported protos
 sourceSets {
@@ -85,11 +113,11 @@ dependencies {
     api 'io.quarkus:quarkus-smallrye-health'
 
     // gRPC and Protobuf runtime
-    api "io.grpc:grpc-protobuf:${grpcVersion}"
-    api "io.grpc:grpc-stub:${grpcVersion}"
-    api "io.grpc:grpc-netty-shaded:${grpcVersion}"
-    api "com.google.protobuf:protobuf-java:${protobufVersion}"
-    api "com.google.protobuf:protobuf-java-util:${protobufVersion}"
+    api "io.grpc:grpc-protobuf"
+    api "io.grpc:grpc-stub"
+    api "io.grpc:grpc-netty-shaded"
+    api "com.google.protobuf:protobuf-java"
+    api "com.google.protobuf:protobuf-java-util"
 
     annotationProcessor enforcedPlatform("io.quarkus:quarkus-bom:${quarkusVersion}")
     annotationProcessor 'io.quarkus:quarkus-extension-processor'
