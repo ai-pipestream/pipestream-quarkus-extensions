@@ -3,10 +3,20 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+    
+    // Load gradle.properties to get quarkusVersion dynamically
+    def gradlePropertiesFile = new File(settingsDir, 'gradle.properties')
+    def quarkusVersion = '3.30.1' // default fallback
+    if (gradlePropertiesFile.exists()) {
+        def gradleProperties = new Properties()
+        gradlePropertiesFile.withInputStream { gradleProperties.load(it) }
+        quarkusVersion = gradleProperties.getProperty('quarkusVersion', quarkusVersion)
+    }
+    
     plugins {
-        id 'io.quarkus.extension' version '3.17.5'
-        id 'build.buf' version '0.9.1'
-        id 'com.google.protobuf' version '0.9.4'
+        id 'io.quarkus.extension' version quarkusVersion
+        id 'build.buf' version '0.10.3'
+        id 'com.google.protobuf' version '0.9.5'
     }
 }
 
