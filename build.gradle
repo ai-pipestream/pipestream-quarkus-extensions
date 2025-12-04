@@ -1,10 +1,10 @@
 plugins {
-    id 'java-library'
-    id 'maven-publish'
+    id 'base'
 }
 
 group = 'ai.pipestream'
 
+// Repositories for BOM subproject
 allprojects {
     repositories {
         mavenCentral()
@@ -20,29 +20,27 @@ allprojects {
     }
 }
 
-subprojects {
-    apply plugin: 'java-library'
-    apply plugin: 'maven-publish'
-
-    group = rootProject.group
-
-    java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    }
-
-    tasks.withType(JavaCompile).configureEach {
-        options.encoding = 'UTF-8'
-        options.compilerArgs << '-parameters'
-    }
-
-    tasks.withType(Test).configureEach {
-        systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
-    }
+// Aggregate tasks to build all extensions (composite builds)
+tasks.register('buildAll') {
+    group = 'build'
+    description = 'Build all extensions'
+    dependsOn gradle.includedBuild('pipestream-quarkus-devservices').task(':buildAll')
+    dependsOn gradle.includedBuild('quarkus-apicurio-registry-protobuf').task(':build')
+    dependsOn gradle.includedBuild('quarkus-dynamic-grpc-extension').task(':build')
+    dependsOn gradle.includedBuild('pipestream-service-registration-extension').task(':build')
 }
+
+tasks.register('testAll') {
+    group = 'verification'
+    description = 'Test all extensions (runs buildAll which includes tests)'
+    dependsOn 'buildAll'
+}
+
+// Note: cleanAll not provided - each extension uses subproject cleans
+// Use: cd <extension-dir> && ../gradlew clean
 
 // Wrapper task for Gradle wrapper
 wrapper {
-    gradleVersion = '8.12'
+    gradleVersion = '9.2.1'
     distributionType = Wrapper.DistributionType.ALL
 }

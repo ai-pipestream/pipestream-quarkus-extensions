@@ -1,0 +1,188 @@
+name: Release Extensions
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+      devservices:
+        description: 'Release devservices'
+        type: boolean
+        default: true
+
+      apicurio:
+        description: 'Release apicurio'
+        type: boolean
+        default: true
+
+      dynamic_grpc:
+        description: 'Release dynamic-grpc'
+        type: boolean
+        default: true
+
+      service_registration:
+        description: 'Release service-registration'
+        type: boolean
+        default: true
+
+      skip_build:
+        description: 'Skip build verification'
+        type: boolean
+        default: false
+
+      dry_run:
+        description: 'Dry run (show versions without tagging)'
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build verification
+        if: inputs.skip_build == false
+        env:
+          GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=512m
+        run: |
+          echo "Running build verification..."
+          ./gradlew buildAll --no-daemon
+          echo "Build successful!"
+
+      - name: Calculate versions and create tags
+        id: release
+        run: |
+          # Function to bump version
+          bump_version() {
+            local version=$1
+            local bump_type=$2
+
+            # Strip -SNAPSHOT if present
+            version=${version%-SNAPSHOT}
+
+            IFS='.' read -r major minor patch <<< "$version"
+
+            case $bump_type in
+              major) echo "$((major + 1)).0.0" ;;
+              minor) echo "$major.$((minor + 1)).0" ;;
+              patch) echo "$major.$minor.$((patch + 1))" ;;
+            esac
+          }
+
+          # Function to get current version for an extension
+          get_version() {
+            local ext_dir=$1
+            cd "$ext_dir"
+            version=$(../gradlew currentVersion -q 2>/dev/null | tail -1 | sed 's/Project version: //')
+            cd ..
+            echo "$version"
+          }
+
+          BUMP_TYPE="${{ inputs.bump_type }}"
+          DRY_RUN="${{ inputs.dry_run }}"
+          TAGS_TO_CREATE=""
+
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Extension | Current Version | New Version | Tag |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-----------------|-------------|-----|" >> $GITHUB_STEP_SUMMARY
+
+          # Process devservices
+          if [ "${{ inputs.devservices }}" == "true" ]; then
+            CURRENT=$(get_version "pipestream-quarkus-devservices")
+            NEW=$(bump_version "$CURRENT" "$BUMP_TYPE")
+            TAG="devservices-v$NEW"
+            echo "| devservices | $CURRENT | $NEW | \`$TAG\` |" >> $GITHUB_STEP_SUMMARY
+            TAGS_TO_CREATE="$TAGS_TO_CREATE $TAG"
+            echo "devservices: $CURRENT → $NEW"
+          fi
+
+          # Process apicurio
+          if [ "${{ inputs.apicurio }}" == "true" ]; then
+            CURRENT=$(get_version "quarkus-apicurio-registry-protobuf")
+            NEW=$(bump_version "$CURRENT" "$BUMP_TYPE")
+            TAG="apicurio-v$NEW"
+            echo "| apicurio | $CURRENT | $NEW | \`$TAG\` |" >> $GITHUB_STEP_SUMMARY
+            TAGS_TO_CREATE="$TAGS_TO_CREATE $TAG"
+            echo "apicurio: $CURRENT → $NEW"
+          fi
+
+          # Process dynamic-grpc
+          if [ "${{ inputs.dynamic_grpc }}" == "true" ]; then
+            CURRENT=$(get_version "quarkus-dynamic-grpc-extension")
+            NEW=$(bump_version "$CURRENT" "$BUMP_TYPE")
+            TAG="dynamic-grpc-v$NEW"
+            echo "| dynamic-grpc | $CURRENT | $NEW | \`$TAG\` |" >> $GITHUB_STEP_SUMMARY
+            TAGS_TO_CREATE="$TAGS_TO_CREATE $TAG"
+            echo "dynamic-grpc: $CURRENT → $NEW"
+          fi
+
+          # Process service-registration
+          if [ "${{ inputs.service_registration }}" == "true" ]; then
+            CURRENT=$(get_version "pipestream-service-registration-extension")
+            NEW=$(bump_version "$CURRENT" "$BUMP_TYPE")
+            TAG="service-registration-v$NEW"
+            echo "| service-registration | $CURRENT | $NEW | \`$TAG\` |" >> $GITHUB_STEP_SUMMARY
+            TAGS_TO_CREATE="$TAGS_TO_CREATE $TAG"
+            echo "service-registration: $CURRENT → $NEW"
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$DRY_RUN" == "true" ]; then
+            echo "**Dry run - no tags created**" >> $GITHUB_STEP_SUMMARY
+            echo "::notice::Dry run complete. No tags were created."
+            echo "dry_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "tags=$TAGS_TO_CREATE" >> $GITHUB_OUTPUT
+            echo "dry_run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create and push tags
+        if: steps.release.outputs.dry_run == 'false'
+        run: |
+          TAGS="${{ steps.release.outputs.tags }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          for TAG in $TAGS; do
+            echo "Creating tag: $TAG"
+            git tag "$TAG"
+          done
+
+          echo "Pushing tags..."
+          git push --tags
+
+          echo "**Tags created and pushed successfully!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The publish workflow will now trigger automatically for each tag." >> $GITHUB_STEP_SUMMARY

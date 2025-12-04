@@ -7,9 +7,15 @@ plugins {
 }
 
 scmVersion {
+    repository {
+        directory = rootDir.parentFile.absolutePath  // Git repo is in parent (monorepo root)
+    }
     tag {
         prefix = 'dynamic-grpc-v'
         initialVersion { config, position -> '0.2.0' }
+    }
+    monorepo {
+        projectDirs = ['quarkus-dynamic-grpc-extension']
     }
     checks {
         uncommittedChanges = false

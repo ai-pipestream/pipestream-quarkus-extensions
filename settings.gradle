@@ -16,11 +16,12 @@ plugins {
 
 rootProject.name = 'pipestream-quarkus-extensions'
 
-// BOM module
+// BOM is a true subproject (no settings.gradle of its own)
 include 'bom'
 
-// Extension modules
-include 'pipestream-quarkus-devservices'
-include 'quarkus-apicurio-registry-protobuf'
-include 'quarkus-dynamic-grpc-extension'
-include 'pipestream-service-registration-extension'
+// Extensions as composite builds (each stays its own root project)
+// This preserves their multi-module structure (runtime/deployment)
+includeBuild 'pipestream-quarkus-devservices'
+includeBuild 'quarkus-apicurio-registry-protobuf'
+includeBuild 'quarkus-dynamic-grpc-extension'
+includeBuild 'pipestream-service-registration-extension'

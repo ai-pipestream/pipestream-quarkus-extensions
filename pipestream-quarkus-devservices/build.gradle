@@ -5,9 +5,15 @@ plugins {
 }
 
 scmVersion {
+    repository {
+        directory = rootDir.parentFile.absolutePath  // Git repo is in parent (monorepo root)
+    }
     tag {
         prefix = 'devservices-v'
         initialVersion { config, position -> '0.2.0' }
+    }
+    monorepo {
+        projectDirs = ['pipestream-quarkus-devservices']
     }
     checks {
         uncommittedChanges = false

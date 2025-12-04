@@ -13,14 +13,14 @@ This monorepo contains 4 Quarkus extensions:
 
 ## Structure
 
-\`\`\`
+```
 pipestream-quarkus-extensions/
 ├── bom/                                          # Extensions BOM
 ├── pipestream-quarkus-devservices/              # Extension 1
 ├── quarkus-apicurio-registry-protobuf/          # Extension 2
 ├── quarkus-dynamic-grpc-extension/              # Extension 3
 └── pipestream-service-registration-extension/   # Extension 4
-\`\`\`
+```
 
 ## Versioning Strategy
 
@@ -47,25 +47,25 @@ Axion-release automatically determines versions based on git tags:
 
 ### Build All Extensions
 
-\`\`\`bash
+```bash
 ./gradlew build
-\`\`\`
+```
 
 ### Build Individual Extension
 
-\`\`\`bash
+```bash
 cd pipestream-quarkus-devservices
 ../gradlew build
-\`\`\`
+```
 
 ## Git History
 
 This monorepo was created using **git subtree merge** to preserve the full commit history of all individual extensions. You can view the history of each extension:
 
-\`\`\`bash
+```bash
 git log pipestream-quarkus-devservices/
 git log quarkus-apicurio-registry-protobuf/
-\`\`\`
+```
 
 ## License
 
