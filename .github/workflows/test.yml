@@ -1,4 +1,4 @@
-name: Test All Extensions
+name: Test and Publish Snapshots
 
 on:
   push:
@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -67,9 +67,108 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: |
             **/build/test-results/
             **/build/reports/
+
+  publish-snapshots:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Setup Buf
+        uses: bufbuild/buf-action@v1
+        with:
+          token: ${{ secrets.BUF_TOKEN }}
+          setup_only: true
+
+      - name: Publish pipestream-quarkus-devservices SNAPSHOT
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=512m
+        run: |
+          cd pipestream-quarkus-devservices
+          VERSION=$(../gradlew currentVersion -q | tail -1 | sed 's/Project version: //')
+          echo "Version: $VERSION"
+          if [[ "$VERSION" == *"SNAPSHOT"* ]]; then
+            echo "Publishing devservices SNAPSHOT $VERSION"
+            ../gradlew publish --no-daemon
+          else
+            echo "Skipping devservices - version $VERSION is a release (use release workflow)"
+          fi
+
+      - name: Publish quarkus-apicurio-registry-protobuf SNAPSHOT
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=512m
+        run: |
+          cd quarkus-apicurio-registry-protobuf
+          VERSION=$(../gradlew currentVersion -q | tail -1 | sed 's/Project version: //')
+          echo "Version: $VERSION"
+          if [[ "$VERSION" == *"SNAPSHOT"* ]]; then
+            echo "Publishing apicurio SNAPSHOT $VERSION"
+            ../gradlew publish --no-daemon
+          else
+            echo "Skipping apicurio - version $VERSION is a release (use release workflow)"
+          fi
+
+      - name: Publish quarkus-dynamic-grpc-extension SNAPSHOT
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=512m
+        run: |
+          cd quarkus-dynamic-grpc-extension
+          VERSION=$(../gradlew currentVersion -q | tail -1 | sed 's/Project version: //')
+          echo "Version: $VERSION"
+          if [[ "$VERSION" == *"SNAPSHOT"* ]]; then
+            echo "Publishing dynamic-grpc SNAPSHOT $VERSION"
+            ../gradlew publish --no-daemon
+          else
+            echo "Skipping dynamic-grpc - version $VERSION is a release (use release workflow)"
+          fi
+
+      - name: Publish pipestream-service-registration-extension SNAPSHOT
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=512m
+        run: |
+          cd pipestream-service-registration-extension
+          VERSION=$(../gradlew currentVersion -q | tail -1 | sed 's/Project version: //')
+          echo "Version: $VERSION"
+          if [[ "$VERSION" == *"SNAPSHOT"* ]]; then
+            echo "Publishing service-registration SNAPSHOT $VERSION"
+            ../gradlew publish --no-daemon
+          else
+            echo "Skipping service-registration - version $VERSION is a release (use release workflow)"
+          fi
