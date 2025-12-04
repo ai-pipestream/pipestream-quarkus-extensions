@@ -83,7 +83,7 @@ subprojects {
                 pom {
                     name = publishedArtifactId
                     description = 'Quarkus Extension for Automatic Service Registration with Platform Registration Service'
-                    url = 'https://github.com/ai-pipestream/pipestream-service-registration-extension'
+                    url = 'https://github.com/ai-pipestream/pipestream-quarkus-extensions'
 
                     licenses {
                         license {
@@ -100,16 +100,16 @@ subprojects {
                     }
 
                     scm {
-                        connection = 'scm:git:https://github.com/ai-pipestream/pipestream-service-registration-extension.git'
-                        developerConnection = 'scm:git:ssh://git@github.com/ai-pipestream/pipestream-service-registration-extension.git'
-                        url = 'https://github.com/ai-pipestream/pipestream-service-registration-extension'
+                        connection = 'scm:git:https://github.com/ai-pipestream/pipestream-quarkus-extensions.git'
+                        developerConnection = 'scm:git:ssh://git@github.com/ai-pipestream/pipestream-quarkus-extensions.git'
+                        url = 'https://github.com/ai-pipestream/pipestream-quarkus-extensions'
                     }
                 }
             }
         }
         repositories {
             mavenLocal()
-            def ghRepo = System.getenv('GITHUB_REPOSITORY') ?: 'ai-pipestream/pipestream-service-registration-extension'
+            def ghRepo = System.getenv('GITHUB_REPOSITORY') ?: 'ai-pipestream/pipestream-quarkus-extensions'
             def ghActor = System.getenv('GITHUB_ACTOR') ?: (project.findProperty('gpr.user') ?: System.getenv('GPR_USER'))
             def ghToken = System.getenv('GITHUB_TOKEN') ?: (project.findProperty('gpr.key') ?: System.getenv('GPR_TOKEN'))
             if (ghActor && ghToken) {

@@ -62,7 +62,7 @@ subprojects {
                 pom {
                     name = publishedArtifactId
                     description = 'Quarkus Extension for Apicurio Registry Protobuf'
-                    url = 'https://github.com/ai-pipestream/quarkus-apicurio-registry-protobuf'
+                    url = 'https://github.com/ai-pipestream/pipestream-quarkus-extensions'
 
                     licenses {
                         license {
@@ -79,9 +79,9 @@ subprojects {
                     }
 
                     scm {
-                        connection = 'scm:git:https://github.com/ai-pipestream/quarkus-apicurio-registry-protobuf.git'
-                        developerConnection = 'scm:git:ssh://git@github.com/ai-pipestream/quarkus-apicurio-registry-protobuf.git'
-                        url = 'https://github.com/ai-pipestream/quarkus-apicurio-registry-protobuf'
+                        connection = 'scm:git:https://github.com/ai-pipestream/pipestream-quarkus-extensions.git'
+                        developerConnection = 'scm:git:ssh://git@github.com/ai-pipestream/pipestream-quarkus-extensions.git'
+                        url = 'https://github.com/ai-pipestream/pipestream-quarkus-extensions'
                     }
                 }
             }
@@ -90,7 +90,7 @@ subprojects {
             mavenLocal()
             maven {
                 name = "GitHubPackages"
-                url = "https://maven.pkg.github.com/ai-pipestream/quarkus-apicurio-registry-protobuf"
+                url = "https://maven.pkg.github.com/ai-pipestream/pipestream-quarkus-extensions"
                 credentials {
                     username = System.getenv("GITHUB_ACTOR")
                     password = System.getenv("GITHUB_TOKEN")
