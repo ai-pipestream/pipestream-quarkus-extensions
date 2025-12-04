@@ -70,7 +70,7 @@ jobs:
           GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=512m
         run: |
           cd bom
-          ../gradlew publish --no-daemon --stacktrace
+          ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
 
       - name: Skip publishing
         if: ${{ contains(steps.check_version.outputs.version, 'SNAPSHOT') }}

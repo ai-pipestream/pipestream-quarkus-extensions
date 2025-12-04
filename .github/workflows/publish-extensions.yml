@@ -77,9 +77,10 @@ jobs:
           echo "Version: $VERSION"
 
           if [[ "$VERSION" != *"SNAPSHOT"* ]]; then
-            echo "Publishing devservices version $VERSION"
+            echo "Publishing devservices version $VERSION to Maven Central"
             ../gradlew clean build publishAllPublicationsToCentralPortal --no-daemon --stacktrace
-            ../gradlew publish -PskipCentral=true --no-daemon --stacktrace
+            echo "Publishing devservices version $VERSION to GitHub Packages"
+            ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
           else
             echo "Skipping devservices - version $VERSION is a SNAPSHOT (no changes)"
           fi
@@ -100,9 +101,10 @@ jobs:
           echo "Version: $VERSION"
 
           if [[ "$VERSION" != *"SNAPSHOT"* ]]; then
-            echo "Publishing apicurio version $VERSION"
+            echo "Publishing apicurio version $VERSION to Maven Central"
             ../gradlew clean build publishAllPublicationsToCentralPortal --no-daemon --stacktrace
-            ../gradlew publish -PskipCentral=true --no-daemon --stacktrace
+            echo "Publishing apicurio version $VERSION to GitHub Packages"
+            ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
           else
             echo "Skipping apicurio - version $VERSION is a SNAPSHOT (no changes)"
           fi
@@ -123,9 +125,10 @@ jobs:
           echo "Version: $VERSION"
 
           if [[ "$VERSION" != *"SNAPSHOT"* ]]; then
-            echo "Publishing dynamic-grpc version $VERSION"
+            echo "Publishing dynamic-grpc version $VERSION to Maven Central"
             ../gradlew clean build publishAllPublicationsToCentralPortal --no-daemon --stacktrace
-            ../gradlew publish -PskipCentral=true --no-daemon --stacktrace
+            echo "Publishing dynamic-grpc version $VERSION to GitHub Packages"
+            ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
           else
             echo "Skipping dynamic-grpc - version $VERSION is a SNAPSHOT (no changes)"
           fi
@@ -146,9 +149,10 @@ jobs:
           echo "Version: $VERSION"
 
           if [[ "$VERSION" != *"SNAPSHOT"* ]]; then
-            echo "Publishing service-registration version $VERSION"
+            echo "Publishing service-registration version $VERSION to Maven Central"
             ../gradlew clean build publishAllPublicationsToCentralPortal --no-daemon --stacktrace
-            ../gradlew publish -PskipCentral=true --no-daemon --stacktrace
+            echo "Publishing service-registration version $VERSION to GitHub Packages"
+            ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
           else
             echo "Skipping service-registration - version $VERSION is a SNAPSHOT (no changes)"
           fi

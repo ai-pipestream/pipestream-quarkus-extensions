@@ -91,9 +91,22 @@ The workflow will:
 
 ## CI/CD Workflows
 
-- **test.yml** - Runs on push/PR to main, tests all extensions
+- **test.yml** - Runs on push/PR to main, tests all extensions. On push to main, also publishes SNAPSHOTs to Maven Central.
 - **release-extensions.yml** - Manual workflow to create release tags
-- **publish-extensions.yml** - Triggered by tags, publishes to Maven Central + GitHub Packages
+- **publish-extensions.yml** - Triggered by tags, publishes releases to Maven Central + GitHub Packages
+
+## Using SNAPSHOT Versions
+
+To use SNAPSHOT versions in your project, add the Maven Central snapshots repository:
+
+```groovy
+repositories {
+    maven {
+        url = uri('https://central.sonatype.com/repository/maven-snapshots/')
+        mavenContent { snapshotsOnly() }
+    }
+}
+```
 
 ## Git History
 
