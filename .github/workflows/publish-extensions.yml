@@ -64,6 +64,8 @@ jobs:
         if: env.GPG_PRIVATE_KEY != ''
         run: |
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          # Verify GPG key was imported
+          gpg --list-secret-keys --keyid-format LONG || (echo "GPG key import failed!" && exit 1)
 
       - name: Publish pipestream-bom
         if: github.event.inputs.extension == 'bom' || github.event.inputs.extension == 'all' || startsWith(github.ref, 'refs/tags/bom-v')
@@ -80,10 +82,13 @@ jobs:
           echo "Version: $VERSION"
 
           if [[ "$VERSION" != *"SNAPSHOT"* ]]; then
+            echo "Building BOM version $VERSION"
+            ./gradlew :bom:clean :bom:build --no-daemon --stacktrace
             echo "Publishing BOM version $VERSION to Maven Central"
             ./gradlew :bom:publishAllPublicationsToCentralPortal --no-daemon --stacktrace
             echo "Publishing BOM version $VERSION to GitHub Packages"
             ./gradlew :bom:publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
+            echo "✅ BOM $VERSION published successfully"
           else
             echo "Skipping BOM - version $VERSION is a SNAPSHOT (no changes)"
           fi
@@ -108,6 +113,7 @@ jobs:
             ../gradlew clean build publishAggregationToCentralPortal --no-daemon --stacktrace
             echo "Publishing devservices version $VERSION to GitHub Packages"
             ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
+            echo "✅ devservices $VERSION published successfully"
           else
             echo "Skipping devservices - version $VERSION is a SNAPSHOT (no changes)"
           fi
@@ -132,6 +138,7 @@ jobs:
             ../gradlew clean build publishAggregationToCentralPortal --no-daemon --stacktrace
             echo "Publishing apicurio version $VERSION to GitHub Packages"
             ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
+            echo "✅ apicurio $VERSION published successfully"
           else
             echo "Skipping apicurio - version $VERSION is a SNAPSHOT (no changes)"
           fi
@@ -156,6 +163,7 @@ jobs:
             ../gradlew clean build publishAggregationToCentralPortal --no-daemon --stacktrace
             echo "Publishing dynamic-grpc version $VERSION to GitHub Packages"
             ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
+            echo "✅ dynamic-grpc $VERSION published successfully"
           else
             echo "Skipping dynamic-grpc - version $VERSION is a SNAPSHOT (no changes)"
           fi
@@ -180,6 +188,7 @@ jobs:
             ../gradlew clean build publishAggregationToCentralPortal --no-daemon --stacktrace
             echo "Publishing service-registration version $VERSION to GitHub Packages"
             ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
+            echo "✅ service-registration $VERSION published successfully"
           else
             echo "Skipping service-registration - version $VERSION is a SNAPSHOT (no changes)"
           fi
@@ -204,6 +213,7 @@ jobs:
             ../gradlew clean build publishAllPublicationsToCentralPortal --no-daemon --stacktrace
             echo "Publishing tika4-shaded version $VERSION to GitHub Packages"
             ../gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon --stacktrace
+            echo "✅ tika4-shaded $VERSION published successfully"
           else
             echo "Skipping tika4-shaded - version $VERSION is a SNAPSHOT (no changes)"
           fi

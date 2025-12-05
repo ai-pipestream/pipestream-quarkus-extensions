@@ -226,6 +226,18 @@ jobs:
           echo "Pushing tags..."
           git push --tags
 
-          echo "**Tags created and pushed successfully!**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The publish workflow will now trigger automatically for each tag." >> $GITHUB_STEP_SUMMARY
+          # Verify tags were pushed
+          if [ $? -eq 0 ]; then
+            echo "✅ Tags pushed successfully"
+            echo "**Tags created and pushed successfully!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The publish workflow will now trigger automatically for each tag." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Published Tags" >> $GITHUB_STEP_SUMMARY
+            for TAG in $TAGS; do
+              echo "- \`$TAG\`" >> $GITHUB_STEP_SUMMARY
+            done
+          else
+            echo "❌ Failed to push tags!" >&2
+            exit 1
+          fi
