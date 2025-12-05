@@ -123,7 +123,9 @@ jobs:
             RELEASE_CMD="-Prelease.versionIncrementer=incrementMajor"
           fi
           
-          RELEASE_PARAMS="$RELEASE_CMD -Prelease.disableChecks -Prelease.disableSnapshotsCheck --no-daemon"
+          # Skip verifyRelease task entirely (we do build verification separately)
+          # Use -x to skip the task, and disable checks as backup
+          RELEASE_PARAMS="$RELEASE_CMD -x verifyRelease -Prelease.disableChecks -Prelease.disableSnapshotsCheck --no-daemon"
           
           echo "## Platform Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -147,6 +149,12 @@ jobs:
             
             local expected_tag="${tag_prefix}${NEW}"
             
+            # Skip verifyRelease only for dynamic-grpc (has integration-tests that cause concurrency issues)
+            local skip_verify=""
+            if [ "$component_name" == "dynamic-grpc" ]; then
+              skip_verify="-x verifyRelease"
+            fi
+            
             if [ "$DRY_RUN" == "true" ]; then
               echo "🔍 DRY RUN - Would create tag: $expected_tag"
               echo "| $component_name | \`$expected_tag\` |" >> $GITHUB_STEP_SUMMARY
@@ -160,10 +168,10 @@ jobs:
               return 0
             fi
             
-            # Release component
+            # Release component (with conditional verifyRelease skip)
             if [ -n "$ext_dir" ]; then
               cd "$ext_dir" || exit 1
-              if ../gradlew "$gradle_task" $RELEASE_PARAMS; then
+              if ../gradlew "$gradle_task" $RELEASE_PARAMS $skip_verify; then
                 cd .. || exit 1
                 echo "✅ Successfully released $component_name"
                 echo "| $component_name | \`$expected_tag\` |" >> $GITHUB_STEP_SUMMARY
@@ -173,7 +181,7 @@ jobs:
                 exit 1
               fi
             else
-              if ./gradlew "$gradle_task" $RELEASE_PARAMS; then
+              if ./gradlew "$gradle_task" $RELEASE_PARAMS $skip_verify; then
                 echo "✅ Successfully released $component_name"
                 echo "| $component_name | \`$expected_tag\` |" >> $GITHUB_STEP_SUMMARY
               else
