@@ -223,16 +223,31 @@ jobs:
           
           echo "Triggering publish workflows for platform version $NEW..."
           
+          if [ -z "$GH_WORKFLOW_TOKEN" ]; then
+            echo "❌ GH_WORKFLOW_TOKEN is not set!" >&2
+            exit 1
+          fi
+          
           # Components to trigger workflows for
           COMPONENTS=("devservices" "apicurio" "dynamic-grpc" "service-registration" "tika4-shaded" "bom")
           
           for EXTENSION in "${COMPONENTS[@]}"; do
             echo "Triggering workflow for: $EXTENSION"
-            curl -X POST \
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
               -H "Accept: application/vnd.github.v3+json" \
               -H "Authorization: token ${GH_WORKFLOW_TOKEN}" \
               "https://api.github.com/repos/ai-pipestream/pipestream-platform/actions/workflows/publish-extensions.yml/dispatches" \
-              -d "{\"ref\":\"main\",\"inputs\":{\"extension\":\"$EXTENSION\"}}" || echo "⚠️  Failed to trigger workflow for $EXTENSION"
+              -d "{\"ref\":\"main\",\"inputs\":{\"extension\":\"$EXTENSION\"}}")
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            
+            if [ "$HTTP_CODE" == "204" ]; then
+              echo "✅ Successfully triggered workflow for $EXTENSION"
+            else
+              echo "⚠️  Failed to trigger workflow for $EXTENSION (HTTP $HTTP_CODE)"
+              echo "Response: $BODY" >&2
+            fi
           done
           
-          echo "✅ Workflow triggers completed"
+          echo "✅ Workflow trigger step completed"
