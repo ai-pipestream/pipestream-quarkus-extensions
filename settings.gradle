@@ -16,6 +16,15 @@ plugins {
 
 rootProject.name = 'pipestream-quarkus-extensions'
 
+// Version catalog for the BOM and root project
+dependencyResolutionManagement {
+    versionCatalogs {
+        libs {
+            from(files("bom/gradle/libs.versions.toml"))
+        }
+    }
+}
+
 // BOM is a true subproject (no settings.gradle of its own)
 include 'bom'
 
