@@ -86,15 +86,12 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Configure Git for releases
-        env:
-          GH_TOKEN: ${{ secrets.GH_WORKFLOW_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Use GH_WORKFLOW_TOKEN for git operations (pushing tags)
-          # This token needs 'repo' scope to push tags, and the push will auto-trigger workflows
-          # (GITHUB_TOKEN pushes don't trigger workflows by design)
-          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/ai-pipestream/pipestream-platform.git
+          # Use GITHUB_TOKEN for git operations (pushing tags)
+          # GITHUB_TOKEN has proper repo permissions and works with axion-release
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/ai-pipestream/pipestream-platform.git
           # Fetch all tags to ensure we have latest state
           git fetch --tags
 
@@ -317,8 +314,56 @@ jobs:
             echo "::notice::Dry run complete. No tags were created."
             echo "dry_run=true" >> $GITHUB_OUTPUT
           else
+            # Collect tags that were created (for triggering workflows)
+            echo "tags_created=true" >> $GITHUB_OUTPUT
             echo "**✅ Release complete!**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Tags were pushed and will automatically trigger publish workflows." >> $GITHUB_STEP_SUMMARY
+            echo "Tags were pushed. Workflows will be triggered separately." >> $GITHUB_STEP_SUMMARY
             echo "dry_run=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Trigger publish workflows
+        if: steps.release.outputs.dry_run == 'false'
+        env:
+          GH_WORKFLOW_TOKEN: ${{ secrets.GH_WORKFLOW_TOKEN }}
+        run: |
+          # Use GH_WORKFLOW_TOKEN ONLY for triggering workflows via API
+          # GITHUB_TOKEN was used for pushing tags (which doesn't auto-trigger workflows)
+          echo "Triggering publish workflows for newly created tags..."
+          
+          # Get the most recent tags that match our patterns
+          RECENT_TAGS=$(git tag --sort=-creatordate | head -20 | grep -E "^(bom-v|devservices-v|apicurio-v|dynamic-grpc-v|service-registration-v|tika-v)" || true)
+          
+          if [ -z "$RECENT_TAGS" ]; then
+            echo "⚠️  No matching tags found to trigger workflows"
+            exit 0
+          fi
+          
+          # Map tag prefixes to extension names for workflow_dispatch input
+          get_extension_name() {
+            local tag=$1
+            case "$tag" in
+              bom-v*) echo "bom" ;;
+              devservices-v*) echo "devservices" ;;
+              apicurio-v*) echo "apicurio" ;;
+              dynamic-grpc-v*) echo "dynamic-grpc" ;;
+              service-registration-v*) echo "service-registration" ;;
+              tika-v*) echo "tika4-shaded" ;;
+              *) echo "all" ;;
+            esac
+          }
+          
+          # Trigger workflow for each tag using workflow_dispatch API
+          # Since tag push events from GITHUB_TOKEN don't trigger workflows, we use the API
+          for TAG in $RECENT_TAGS; do
+            EXTENSION=$(get_extension_name "$TAG")
+            echo "Triggering workflow for tag: $TAG (extension: $EXTENSION)"
+            
+            curl -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${GH_WORKFLOW_TOKEN}" \
+              "https://api.github.com/repos/ai-pipestream/pipestream-platform/actions/workflows/publish-extensions.yml/dispatches" \
+              -d "{\"ref\":\"main\",\"inputs\":{\"extension\":\"$EXTENSION\"}}" || echo "⚠️  Failed to trigger workflow for $TAG"
+          done
+          
+          echo "✅ Workflow triggers completed"
