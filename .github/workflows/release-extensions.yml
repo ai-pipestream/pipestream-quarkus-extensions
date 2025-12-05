@@ -1,4 +1,4 @@
-name: Release Platform
+name: Create a Release
 
 on:
   workflow_dispatch:
