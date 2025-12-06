@@ -133,4 +133,8 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           BUF_USER: ${{ secrets.BUF_USER }}
           BUF_API_TOKEN: ${{ secrets.BUF_API_TOKEN }}
-        run: ./gradlew publishAggregationToCentralPortalSnapshots --no-daemon
+        run: |
+          # Publish to Maven Central Snapshots via nmcp aggregation
+          ./gradlew publishAggregationToCentralPortalSnapshots --no-daemon
+          # Publish to GitHub Packages via maven-publish (publishes all projects to all configured repositories)
+          ./gradlew publish --no-daemon

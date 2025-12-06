@@ -31,10 +31,19 @@ jobs:
         with:
           version: "1.28.1"
 
-      - name: Publish to Maven Central Portal
+      - name: Publish to Maven Central Portal and GitHub Packages
         env:
+          # Maven Central
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          # GitHub Packages
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signing
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./gradlew publishAggregationToCentralPortal --no-daemon
+        run: |
+          # Publish to Maven Central Portal via nmcp aggregation
+          ./gradlew publishAggregationToCentralPortal --no-daemon
+          # Publish to GitHub Packages via maven-publish (publishes all projects to all configured repositories)
+          ./gradlew publish --no-daemon
