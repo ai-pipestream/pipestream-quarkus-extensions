@@ -52,11 +52,11 @@ include 'quarkus-dynamic-grpc-integration-tests'
 project(':quarkus-dynamic-grpc-integration-tests').projectDir = file('quarkus-dynamic-grpc/integration-tests')
 
 // 4. Service Registration
-include 'pipestream-service-registration-extension'
-project(':pipestream-service-registration-extension').projectDir = file('pipestream-service-registration-extension/runtime')
+include 'pipestream-service-registration'
+project(':pipestream-service-registration').projectDir = file('pipestream-service-registration/runtime')
 
-include 'pipestream-service-registration-extension-deployment'
-project(':pipestream-service-registration-extension-deployment').projectDir = file('pipestream-service-registration-extension/deployment')
+include 'pipestream-service-registration-deployment'
+project(':pipestream-service-registration-deployment').projectDir = file('pipestream-service-registration/deployment')
 
-include 'pipestream-service-registration-extension-integration-tests'
-project(':pipestream-service-registration-extension-integration-tests').projectDir = file('pipestream-service-registration-extension/integration-tests')
+include 'pipestream-service-registration-integration-tests'
+project(':pipestream-service-registration-integration-tests').projectDir = file('pipestream-service-registration/integration-tests')

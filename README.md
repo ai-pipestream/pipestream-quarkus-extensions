@@ -8,7 +8,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/pipestream-quarkus-devservices?label=devservices)](https://central.sonatype.com/artifact/ai.pipestream/pipestream-quarkus-devservices)
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/quarkus-apicurio-registry-protobuf?label=apicurio)](https://central.sonatype.com/artifact/ai.pipestream/quarkus-apicurio-registry-protobuf)
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/quarkus-dynamic-grpc?label=dynamic-grpc)](https://central.sonatype.com/artifact/ai.pipestream/quarkus-dynamic-grpc)
-[![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/pipestream-service-registration-extension?label=service-reg)](https://central.sonatype.com/artifact/ai.pipestream/pipestream-service-registration-extension)
+[![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/pipestream-service-registration?label=service-reg)](https://central.sonatype.com/artifact/ai.pipestream/pipestream-service-registration)
 
 Monorepo for Pipestream platform libraries - Quarkus extensions, BOM, and utility libraries for the Pipestream AI platform.
 
@@ -23,7 +23,7 @@ Monorepo for Pipestream platform libraries - Quarkus extensions, BOM, and utilit
 1. **pipestream-quarkus-devservices** - Dev services for local development
 2. **quarkus-apicurio-registry-protobuf** - Apicurio Registry integration with Protobuf
 3. **quarkus-dynamic-grpc** - Dynamic gRPC client with service discovery
-4. **pipestream-service-registration-extension** - Service registration client
+4. **pipestream-service-registration** - Service registration client
 
 ### Utility Libraries
 
@@ -40,7 +40,7 @@ graph TD
     A --> D[pipestream-quarkus-devservices]
     A --> E[quarkus-apicurio-registry-protobuf]
     A --> F[quarkus-dynamic-grpc]
-    A --> G[pipestream-service-registration-extension]
+    A --> G[pipestream-service-registration]
 
     B:::bom
     C:::lib

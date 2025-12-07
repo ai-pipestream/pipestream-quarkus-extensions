@@ -50,8 +50,8 @@ dependencies {
         api project(':quarkus-dynamic-grpc')
         api project(':quarkus-dynamic-grpc-deployment')
 
-        api project(':pipestream-service-registration-extension')
-        api project(':pipestream-service-registration-extension-deployment')
+        api project(':pipestream-service-registration')
+        api project(':pipestream-service-registration-deployment')
 
         // ========================
         // Pipestream Internal Libraries

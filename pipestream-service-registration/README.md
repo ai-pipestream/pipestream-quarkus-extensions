@@ -35,7 +35,7 @@ Add the extension to your Quarkus project's `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'ai.pipestream:pipestream-service-registration-extension:0.1.0-SNAPSHOT'
+    implementation 'ai.pipestream:pipestream-service-registration:0.1.0-SNAPSHOT'
 }
 ```
 
@@ -44,7 +44,7 @@ Or for Maven:
 ```xml
 <dependency>
     <groupId>ai.pipestream</groupId>
-    <artifactId>pipestream-service-registration-extension</artifactId>
+    <artifactId>pipestream-service-registration</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -217,7 +217,7 @@ message RegisterRequest {
 This is a multi-module Quarkus extension project:
 
 ```
-pipestream-service-registration-extension/
+pipestream-service-registration/
 ├── runtime/              # Runtime implementation
 │   └── src/main/java/
 │       └── ai/pipestream/registration/
@@ -364,7 +364,7 @@ The extension includes unit tests in the `integration-tests` module. Run tests w
 The extension is published to:
 
 - **Maven Central Snapshots**: `https://central.sonatype.com/repository/maven-snapshots/`
-- **GitHub Packages**: `https://maven.pkg.github.com/ai-pipestream/pipestream-service-registration-extension`
+- **GitHub Packages**: `https://maven.pkg.github.com/ai-pipestream/pipestream-platform`
 
 Versioning is managed by the `axion-release` Gradle plugin based on git tags.
 

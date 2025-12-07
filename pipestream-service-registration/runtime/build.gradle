@@ -10,7 +10,7 @@ buf {
 }
 
 quarkusExtension {
-    deploymentModule = 'pipestream-service-registration-extension-deployment'
+    deploymentModule = 'pipestream-service-registration-deployment'
 }
 
 // Workaround for Gradle 9: disable validateExtension which performs unsafe configuration resolution

@@ -22,7 +22,7 @@ dependencies {
     api 'io.quarkus:quarkus-smallrye-health-deployment'
     
     // Runtime dependency
-    api project(':pipestream-service-registration-extension')
+    api project(':pipestream-service-registration')
     
     // Annotation processor
     annotationProcessor enforcedPlatform(libs.quarkus.bom)

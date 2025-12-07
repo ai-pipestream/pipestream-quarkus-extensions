@@ -17,7 +17,7 @@ configurations.configureEach {
 dependencies {
     testImplementation enforcedPlatform(libs.quarkus.bom)
     
-    testImplementation project(':pipestream-service-registration-extension')
+    testImplementation project(':pipestream-service-registration')
     
     // Let Quarkus BOM manage JUnit versions
     testImplementation 'io.quarkus:quarkus-junit5'
