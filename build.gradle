@@ -46,7 +46,7 @@ scmVersion {
 // When verifyRelease runs, disable parallel configuration resolution
 // This prevents "exclusive lock" errors with Quarkus integration test configurations
 gradle.taskGraph.whenReady { graph ->
-    if (graph.hasTask(tasks.named('verifyRelease'))) {
+    if (graph.hasTask(':verifyRelease')) {
         // Disable parallel configuration resolution for verifyRelease
         gradle.startParameter.maxWorkerCount = 1
     }
