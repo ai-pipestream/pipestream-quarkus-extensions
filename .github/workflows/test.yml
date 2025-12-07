@@ -70,12 +70,6 @@ jobs:
         run: |
           ./gradlew :pipestream-service-registration:clean :pipestream-service-registration:build :pipestream-service-registration:test --no-daemon
 
-      - name: Build tika4-shaded
-        env:
-          GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=512m
-        run: |
-          ./gradlew :tika4-shaded:clean :tika4-shaded:build --no-daemon
-
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v5
