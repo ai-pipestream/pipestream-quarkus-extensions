@@ -29,6 +29,12 @@ allprojects {
     version = rootProject.scmVersion.version
 }
 
+// Repositories for root project (needed for nmcp plugin's internal dependencies)
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+}
+
 nmcpAggregation {
     publishAllProjectsProbablyBreakingProjectIsolation()
 
