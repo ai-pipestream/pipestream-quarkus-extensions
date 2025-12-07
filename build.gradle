@@ -20,7 +20,7 @@ scmVersion {
     checks {
         uncommittedChanges = false
         aheadOfRemote = false
-        snapshotDependencies = true  // Disabled due to Gradle 9 parallel resolution issues with Quarkus integration tests
+        snapshotDependencies = false  // Re-enabled - tika4-shaded is now a separate independent project
     }
     
     hooks {
@@ -39,6 +39,16 @@ scmVersion {
         pre('commit', { releaseVersion, position -> 
             "chore: update version catalog to $releaseVersion"
         })
+    }
+}
+
+// Fix for Gradle 9 parallel configuration resolution issue with Quarkus integration tests
+// Configure verifyRelease to use serial configuration resolution
+tasks.named('verifyRelease').configure {
+    doFirst {
+        // Force serial configuration resolution to avoid "exclusive lock" errors
+        // This is a workaround for Gradle 9's parallel resolution with Quarkus integration tests
+        project.gradle.startParameter.maxWorkerCount = 1
     }
 }
 

@@ -18,7 +18,6 @@ rootProject.name = 'pipestream-platform'
 
 // Top-level modules
 include 'bom'
-include 'tika4-shaded'
 
 // =============================================================================
 // Extensions - Flattened Logical Structure

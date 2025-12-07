@@ -56,8 +56,8 @@ dependencies {
         // ========================
         // Pipestream Internal Libraries
         // ========================
-        // Library modules
-        api project(':tika4-shaded')
+        // Note: tika4-shaded is managed as a separate independent project
+        // Will be added back to BOM after 0.7.0 release
 
         // Sample documents test data - still external for now unless they are in the build?
         // The settings.gradle didn't include them, so they stay as libs.

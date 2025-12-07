@@ -4,7 +4,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/pipestream-bom?label=BOM)](https://central.sonatype.com/artifact/ai.pipestream/pipestream-bom)
-[![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/tika4-shaded?label=tika4-shaded)](https://central.sonatype.com/artifact/ai.pipestream/tika4-shaded)
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/pipestream-quarkus-devservices?label=devservices)](https://central.sonatype.com/artifact/ai.pipestream/pipestream-quarkus-devservices)
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/quarkus-apicurio-registry-protobuf?label=apicurio)](https://central.sonatype.com/artifact/ai.pipestream/quarkus-apicurio-registry-protobuf)
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/quarkus-dynamic-grpc?label=dynamic-grpc)](https://central.sonatype.com/artifact/ai.pipestream/quarkus-dynamic-grpc)
@@ -25,10 +24,6 @@ Monorepo for Pipestream platform libraries - Quarkus extensions, BOM, and utilit
 3. **quarkus-dynamic-grpc** - Dynamic gRPC client with service discovery
 4. **pipestream-service-registration** - Service registration client
 
-### Utility Libraries
-
-- **tika4-shaded** - Shaded Apache Tika 4 snapshot for Quarkus compatibility
-
 ## Structure
 
 This project uses **Gradle composite builds** - each extension/library is its own root project, coordinated from a single repository.
@@ -36,21 +31,18 @@ This project uses **Gradle composite builds** - each extension/library is its ow
 ```mermaid
 graph TD
     A[pipestream-platform] --> B[bom]
-    A --> C[tika4-shaded]
     A --> D[pipestream-quarkus-devservices]
     A --> E[quarkus-apicurio-registry-protobuf]
     A --> F[quarkus-dynamic-grpc]
     A --> G[pipestream-service-registration]
 
     B:::bom
-    C:::lib
     D:::ext
     E:::ext
     F:::ext
     G:::ext
 
     classDef bom fill:#e1f5fe
-    classDef lib fill:#fff3e0
     classDef ext fill:#e8f5e9
 ```
 
@@ -61,11 +53,12 @@ graph TD
 Each component has **independent versioning** using [axion-release](https://github.com/allegro/axion-release-plugin):
 
 - **bom**: `bom-v0.6.0`
-- **tika4-shaded**: `tika-v0.1.9`
 - **devservices**: `devservices-v0.2.0`
 - **apicurio**: `apicurio-v0.2.0`
 - **dynamic-grpc**: `dynamic-grpc-v0.2.0`
 - **service-registration**: `service-registration-v0.2.0`
+
+**Note:** `tika4-shaded` is managed as a separate independent project and will be added to the BOM after 0.7.0 release.
 
 ### How It Works
 
@@ -141,7 +134,8 @@ dependencies {
 
     // Now you can use dependencies without versions
     implementation 'ai.pipestream:pipestream-quarkus-devservices'
-    implementation 'ai.pipestream:tika4-shaded'
+    // Note: tika4-shaded is available as a separate dependency
+    // implementation 'ai.pipestream:tika4-shaded:0.7.0'
 }
 ```
 
