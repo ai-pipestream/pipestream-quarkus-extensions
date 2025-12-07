@@ -60,9 +60,6 @@ password4j = "1.8.4"
 # Consul Client
 consul-client = "1.9.0"
 
-# Tika - using 4.0.0-SNAPSHOT from Apache snapshots repository
-tika = "4.0.0-SNAPSHOT"
-
 # ========================
 # Pipestream Quarkus Extensions
 # ========================
@@ -219,12 +216,6 @@ pipestream-sample-doc-types = { module = "ai.pipestream:sample-doc-types", versi
 pipestream-test-documents = { module = "ai.pipestream:test-documents", version.ref = "sample-documents" }
 pipestream-parser-pipedoc-parsed = { module = "ai.pipestream:parser-pipedoc-parsed", version.ref = "sample-documents" }
 pipestream-double-chunked-pipedocs = { module = "ai.pipestream:double-chunked-pipedocs", version.ref = "sample-documents" }
-
-# Tika (using v3 as proxy for v4-snapshot structure if compatible, or just hardcode in build.gradle if specific snapshot)
-tika-core = { module = "org.apache.tika:tika-core", version.ref = "tika" }
-tika-parsers-standard = { module = "org.apache.tika:tika-parsers-standard-package", version.ref = "tika" }
-tika-parser-scientific = { module = "org.apache.tika:tika-parser-scientific-module", version.ref = "tika" }
-tika-parser-ocr = { module = "org.apache.tika:tika-parser-ocr-module", version.ref = "tika" }
 
 # Pipestream internal libraries
 pipestream-devservices = { module = "ai.pipestream:pipestream-quarkus-devservices", version.ref = "pipestream-devservices" }

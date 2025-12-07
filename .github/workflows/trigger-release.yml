@@ -39,6 +39,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Verify Release (Check for SNAPSHOT dependencies)
+        run: ./gradlew verifyRelease -Prelease.dryRun -Dorg.gradle.parallel=false
+
       - name: Perform Release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_WORKFLOW_TOKEN }}

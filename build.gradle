@@ -20,7 +20,7 @@ scmVersion {
     checks {
         uncommittedChanges = false
         aheadOfRemote = false
-        snapshotDependencies = false  // Re-enabled - tika4-shaded is now a separate independent project
+        snapshotDependencies = true  // Enabled - verify no SNAPSHOT dependencies in published artifacts
     }
     
     hooks {
@@ -42,15 +42,6 @@ scmVersion {
     }
 }
 
-// Fix for Gradle 9 parallel configuration resolution issue with Quarkus integration tests
-// When verifyRelease runs, disable parallel configuration resolution
-// This prevents "exclusive lock" errors with Quarkus integration test configurations
-gradle.taskGraph.whenReady { graph ->
-    if (graph.hasTask(':verifyRelease')) {
-        // Disable parallel configuration resolution for verifyRelease
-        gradle.startParameter.maxWorkerCount = 1
-    }
-}
 
 allprojects {
     group = 'ai.pipestream'
@@ -82,14 +73,6 @@ subprojects {
     repositories {
         mavenCentral()
         mavenLocal()
-        // Apache Snapshots for Tika 4.0.0-SNAPSHOT
-        maven {
-            name = 'ApacheSnapshots'
-            url = uri('https://repository.apache.org/content/repositories/snapshots/')
-            mavenContent {
-                snapshotsOnly()
-            }
-        }
         maven {
             name = 'GitHubPackages'
             url = uri('https://maven.pkg.github.com/ai-pipestream/pipestream-platform')
