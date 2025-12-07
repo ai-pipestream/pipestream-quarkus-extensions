@@ -20,7 +20,7 @@ scmVersion {
     checks {
         uncommittedChanges = false
         aheadOfRemote = false
-        snapshotDependencies = false
+        snapshotDependencies = true  // Disabled due to Gradle 9 parallel resolution issues with Quarkus integration tests
     }
     
     hooks {
