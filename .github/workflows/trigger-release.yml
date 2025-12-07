@@ -38,6 +38,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Configure credentials for JGit (used by axion-release plugin)
+          git config credential.helper store
+          echo "https://x-access-token:${{ secrets.GH_WORKFLOW_TOKEN }}@github.com" > ~/.git-credentials
 
       - name: Verify Release (Check for SNAPSHOT dependencies)
         run: ./gradlew verifyRelease -Prelease.dryRun -Dorg.gradle.parallel=false
