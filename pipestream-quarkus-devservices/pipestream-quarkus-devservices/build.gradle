@@ -42,14 +42,6 @@ tasks.matching { it.name == 'validateExtension' }.configureEach {
     enabled = false
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            artifactId = 'pipestream-quarkus-devservices'
-            pom {
-                name = 'pipestream-quarkus-devservices'
-                description = 'Quarkus extension for Pipeline DevServices - Runtime'
-            }
-        }
-    }
-}
+// Publishing is configured in root build.gradle for all subprojects
+// The root creates a 'maven' publication with artifactId = project.name
+// The Quarkus extension plugin links runtime and deployment via quarkusExtension.deploymentModule

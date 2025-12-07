@@ -31,14 +31,6 @@ tasks.withType(Test).configureEach {
     }
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            artifactId = 'pipestream-quarkus-devservices-deployment'
-            pom {
-                name = 'pipestream-quarkus-devservices-deployment'
-                description = 'Quarkus extension for Pipeline DevServices - Deployment'
-            }
-        }
-    }
-}
+// Publishing is configured in root build.gradle for all subprojects
+// The root creates a 'maven' publication with artifactId = project.name
+// Quarkus extension naming convention: deployment module artifactId = runtime artifactId + '-deployment'
