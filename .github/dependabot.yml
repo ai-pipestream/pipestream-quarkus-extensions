@@ -40,9 +40,9 @@ updates:
         patterns:
           - "*"
 
-  # quarkus-dynamic-grpc-extension
+  # quarkus-dynamic-grpc
   - package-ecosystem: "gradle"
-    directory: "/quarkus-dynamic-grpc-extension"
+    directory: "/quarkus-dynamic-grpc"
     schedule:
       interval: "weekly"
     groups:
@@ -50,9 +50,9 @@ updates:
         patterns:
           - "*"
 
-  # pipestream-service-registration-extension
+  # pipestream-service-registration
   - package-ecosystem: "gradle"
-    directory: "/pipestream-service-registration-extension"
+    directory: "/pipestream-service-registration"
     schedule:
       interval: "weekly"
     groups:

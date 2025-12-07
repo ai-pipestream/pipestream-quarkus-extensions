@@ -52,17 +52,17 @@ jobs:
         run: |
           ./gradlew :quarkus-apicurio-registry-protobuf:clean :quarkus-apicurio-registry-protobuf:build :quarkus-apicurio-registry-protobuf:test --no-daemon
 
-      - name: Test quarkus-dynamic-grpc-extension
+      - name: Test quarkus-dynamic-grpc
         env:
           GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=512m
         run: |
-          ./gradlew :quarkus-dynamic-grpc-extension:clean :quarkus-dynamic-grpc-extension:build :quarkus-dynamic-grpc-extension:test --no-daemon
+          ./gradlew :quarkus-dynamic-grpc:clean :quarkus-dynamic-grpc:build :quarkus-dynamic-grpc:test --no-daemon
 
-      - name: Test pipestream-service-registration-extension
+      - name: Test pipestream-service-registration
         env:
           GRADLE_OPTS: -Xmx2048m -XX:MaxMetaspaceSize=512m
         run: |
-          ./gradlew :pipestream-service-registration-extension:clean :pipestream-service-registration-extension:build :pipestream-service-registration-extension:test --no-daemon
+          ./gradlew :pipestream-service-registration:clean :pipestream-service-registration:build :pipestream-service-registration:test --no-daemon
 
       - name: Build tika4-shaded
         env:
