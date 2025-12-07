@@ -105,16 +105,7 @@ subprojects {
         publishing {
             repositories {
                 mavenLocal()
-                // Maven Central Snapshots (Central Portal)
-                maven {
-                    name = 'MavenCentralSnapshots'
-                    url = uri('https://central.sonatype.com/repository/maven-snapshots/')
-                    credentials {
-                        username = findProperty('mavenCentralUsername') ?: System.getenv('MAVEN_CENTRAL_USERNAME')
-                        password = findProperty('mavenCentralPassword') ?: System.getenv('MAVEN_CENTRAL_PASSWORD')
-                    }
-                }
-                // GitHub Packages
+                // GitHub Packages (Maven Central handled separately via nmcp aggregation)
                 maven {
                     name = 'GitHubPackages'
                     url = uri('https://maven.pkg.github.com/ai-pipestream/pipestream-platform')
