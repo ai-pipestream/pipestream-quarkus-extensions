@@ -145,5 +145,5 @@ jobs:
         run: |
           # Publish to Maven Central Snapshots via nmcp aggregation
           ./gradlew publishAggregationToCentralPortalSnapshots --no-daemon
-          # Publish to GitHub Packages via maven-publish (publishes all projects to all configured repositories)
-          ./gradlew publish --no-daemon
+          # Publish to GitHub Packages only
+          ./gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon
