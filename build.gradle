@@ -105,7 +105,7 @@ subprojects {
         publishing {
             repositories {
                 mavenLocal()
-                // GitHub Packages (Maven Central handled separately via nmcp aggregation)
+                // GitHub Packages
                 maven {
                     name = 'GitHubPackages'
                     url = uri('https://maven.pkg.github.com/ai-pipestream/pipestream-platform')

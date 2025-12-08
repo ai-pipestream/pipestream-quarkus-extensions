@@ -48,26 +48,20 @@ graph TD
 
 ## Versioning Strategy
 
-### Independent Versioning with Axion-Release
+### Single Versioning with Axion-Release
 
-Each component has **independent versioning** using [axion-release](https://github.com/allegro/axion-release-plugin):
+All components share a **single version** managed at the root level using [axion-release](https://github.com/allegro/axion-release-plugin):
 
-- **bom**: `bom-v0.6.0`
-- **devservices**: `devservices-v0.2.0`
-- **apicurio**: `apicurio-v0.2.0`
-- **dynamic-grpc**: `dynamic-grpc-v0.2.0`
-- **service-registration**: `service-registration-v0.2.0`
-
-**Note:** `tika4-shaded` is managed as a separate independent project and will be added to the BOM after 0.7.0 release.
+- All extensions and the BOM use the same version (e.g., `0.7.0`)
+- Version is determined from git tags with the `v` prefix (e.g., `v0.7.0`)
+- **Tagged**: `git tag v0.7.0` → version `0.7.0`
+- **Untagged**: No tag → version `0.7.0-SNAPSHOT`
 
 ### How It Works
 
-Axion-release automatically determines versions based on git tags:
+Axion-release automatically determines the version based on git tags at the repository root. All subprojects inherit this version, ensuring consistent releases across all components.
 
-- **Tagged**: `git tag devservices-v0.2.0` → version `0.2.0`
-- **Untagged**: No tag → version `0.2.0-SNAPSHOT`
-
-The `monorepo` configuration ensures changes to one extension don't affect others' versions.
+**Note:** `tika4-shaded` is managed as a separate independent project in its own repository.
 
 ## Building
 
@@ -90,18 +84,13 @@ cd pipestream-quarkus-devservices
 ../gradlew build
 ```
 
-### Check Individual Version
+### Check Current Version
 
 ```bash
-cd pipestream-quarkus-devservices
-../gradlew currentVersion -q
+./gradlew currentVersion -q
 ```
 
-### List All Versions
-
-```bash
-./gradlew listVersions
-```
+This will show the current version for all components (they all share the same version).
 
 ## Releasing
 
@@ -109,19 +98,18 @@ Use the **Release Extensions** workflow in GitHub Actions:
 
 1. Go to Actions → Release Extensions → Run workflow
 2. Select bump type (patch/minor/major)
-3. Check which extensions to release (all checked by default)
-4. Optionally enable "Dry run" to preview versions
-5. Click "Run workflow"
+3. Optionally enable "Dry run" to preview the version
+4. Click "Run workflow"
 
 The workflow will:
-- Build and verify all selected extensions
-- Create git tags for each extension
-- Push tags (triggers automatic publishing)
+- Build and verify all extensions
+- Create a git tag for the release (e.g., `v0.7.0`)
+- Push the tag (triggers automatic publishing of all components)
 
 ## CI/CD Workflows
 
 - **test.yml** - Runs on push/PR to main, tests all extensions. On push to main, also publishes SNAPSHOTs to Maven Central.
-- **release-extensions.yml** - Manual workflow to create release tags
+- **release-extensions.yml** - Manual workflow to create release tags (single tag for all components)
 - **publish-extensions.yml** - Triggered by tags, publishes releases to Maven Central + GitHub Packages
 
 ## Using the BOM
@@ -130,14 +118,15 @@ Import the BOM to manage all Pipestream dependencies:
 
 ```groovy
 dependencies {
-    implementation platform('ai.pipestream:pipestream-bom:0.6.0')
+    implementation platform('ai.pipestream:pipestream-bom:0.7.0')
 
     // Now you can use dependencies without versions
     implementation 'ai.pipestream:pipestream-quarkus-devservices'
-    // Note: tika4-shaded is available as a separate dependency
+    // Note: tika4-shaded is available as a separate dependency from its own repository
     // implementation 'ai.pipestream:tika4-shaded:0.7.0'
 }
 ```
+
 
 ## Using SNAPSHOT Versions
 
@@ -152,7 +141,7 @@ repositories {
 }
 
 dependencies {
-    implementation platform('ai.pipestream:pipestream-bom:0.6.0-SNAPSHOT')
+    implementation platform('ai.pipestream:pipestream-bom:0.7.0-SNAPSHOT')
 }
 ```
 
