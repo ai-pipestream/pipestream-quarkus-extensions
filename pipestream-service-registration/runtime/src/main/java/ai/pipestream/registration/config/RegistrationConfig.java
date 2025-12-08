@@ -11,7 +11,8 @@ import java.util.Optional;
 /**
  * Configuration for the Pipestream service registration extension.
  *
- * <p>All settings have sensible defaults for zero-configuration usage.
+ * <p>
+ * All settings have sensible defaults for zero-configuration usage.
  */
 @ConfigMapping(prefix = "pipestream.registration")
 public interface RegistrationConfig {
@@ -28,6 +29,11 @@ public interface RegistrationConfig {
      */
     @WithName("service-name")
     Optional<String> serviceName();
+
+    /**
+     * The description of the service.
+     */
+    Optional<String> description();
 
     /**
      * The type of service being registered (SERVICE or MODULE).
@@ -68,7 +74,8 @@ public interface RegistrationConfig {
 
     /**
      * The internal port (actual bind port).
-     * Used for port mapping scenarios. If not specified, the advertised port is used.
+     * Used for port mapping scenarios. If not specified, the advertised port is
+     * used.
      */
     @WithName("internal-port")
     Optional<Integer> internalPort();
@@ -97,6 +104,12 @@ public interface RegistrationConfig {
     RegistrationServiceConfig registrationService();
 
     /**
+     * Configuration for health check.
+     */
+    @WithName("health-check")
+    HealthCheckConfig healthCheck();
+
+    /**
      * Configuration for retry behavior.
      */
     RetryConfig retry();
@@ -122,6 +135,23 @@ public interface RegistrationConfig {
          */
         @WithDefault("10s")
         Duration timeout();
+    }
+
+    /**
+     * Health check configuration.
+     */
+    interface HealthCheckConfig {
+        /**
+         * Whether health checks are enabled.
+         */
+        @WithDefault("true")
+        boolean enabled();
+
+        /**
+         * Interval between health checks.
+         */
+        @WithDefault("30s")
+        Duration interval();
     }
 
     /**
