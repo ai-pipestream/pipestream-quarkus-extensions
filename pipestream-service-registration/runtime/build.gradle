@@ -124,6 +124,7 @@ dependencies {
     api 'io.quarkus:quarkus-arc'
     api 'io.quarkus:quarkus-grpc'
     api 'io.quarkus:quarkus-smallrye-health'
+    api 'io.quarkus:quarkus-vertx'
 
     // gRPC and Protobuf runtime - explicitly specify versions to override BOM
     api libs.grpc.protobuf
@@ -131,6 +132,9 @@ dependencies {
     api libs.grpc.netty
     api libs.protobuf.java
     api libs.protobuf.java.util
+
+    // Mutiny Consul client for service discovery
+    api libs.smallrye.mutiny.vertx.consul.client
 
     annotationProcessor enforcedPlatform(libs.quarkus.bom)
     annotationProcessor 'io.quarkus:quarkus-extension-processor'
