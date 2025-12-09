@@ -14,7 +14,6 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -23,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>Automatically registers the service on startup and deregisters gracefully on shutdown.
  * Health checking is handled by Consul via standard gRPC health checks.
  */
+@SuppressWarnings("unused")
 @ApplicationScoped
 public class ServiceRegistrationManager {
 
@@ -79,15 +79,20 @@ public class ServiceRegistrationManager {
         state.set(RegistrationState.REGISTERING);
         ServiceInfo serviceInfo = metadataCollector.collect();
 
-        AtomicInteger attempts = new AtomicInteger(0);
         int maxAttempts = config.retry().maxAttempts();
         Duration initialDelay = config.retry().initialDelay();
         Duration maxDelay = config.retry().maxDelay();
-        double multiplier = config.retry().multiplier();
 
         registrationSubscription = registrationClient.register(serviceInfo)
                 .onItem().invoke(this::handleRegistrationResponse)
-                .onFailure().invoke(t -> LOG.warnf(t, "Registration attempt failed"))
+                .onFailure().invoke(t -> {
+                    LOG.warnf(t, "Registration attempt failed");
+                    // If we were REGISTERED and connection fails, reset for re-registration
+                    if (state.get() == RegistrationState.REGISTERED && config.reRegistration().enabled()) {
+                        LOG.warn("Connection lost after successful registration, will re-register");
+                        handleConnectionLoss();
+                    }
+                })
                 .onFailure().retry()
                     .withBackOff(initialDelay, maxDelay)
                     .withJitter(DEFAULT_RETRY_JITTER)
@@ -95,10 +100,29 @@ public class ServiceRegistrationManager {
                 .subscribe().with(
                         response -> LOG.debugf("Registration update received: %s", response.getEvent().getEventType()),
                         failure -> {
-                            LOG.errorf(failure, "Registration failed after %d attempts", maxAttempts);
-                            state.set(RegistrationState.FAILED);
+                            RegistrationState currentState = state.get();
+                            if (currentState == RegistrationState.REGISTERED && config.reRegistration().enabled()) {
+                                // Connection lost after registration - trigger re-registration
+                                LOG.warnf(failure, "Registration stream failed after successful registration, will re-register");
+                                handleConnectionLoss();
+                            } else {
+                                LOG.errorf(failure, "Registration failed after %d attempts", maxAttempts);
+                                state.set(RegistrationState.FAILED);
+                            }
                         },
-                        () -> LOG.info("Registration stream completed")
+                        () -> {
+                            // Stream completed normally
+                            RegistrationState currentState = state.get();
+                            // Don't treat completion as connection loss if we successfully registered
+                            // The stream is expected to complete after COMPLETED event is sent by the server
+                            if (currentState == RegistrationState.REGISTERED) {
+                                LOG.debug("Registration stream completed normally after successful registration");
+                                // This is expected behavior - the server closes the stream after sending COMPLETED
+                                // Do NOT trigger re-registration here
+                            } else {
+                                LOG.info("Registration stream completed");
+                            }
+                        }
                 );
     }
 
@@ -149,5 +173,41 @@ public class ServiceRegistrationManager {
      */
     public String getServiceId() {
         return serviceId.get();
+    }
+
+    /**
+     * Handles connection loss after successful registration.
+     * Resets the channel and state, then triggers re-registration.
+     */
+    private void handleConnectionLoss() {
+        RegistrationState currentState = state.get();
+        if (currentState != RegistrationState.REGISTERED) {
+            // Only handle connection loss if we were actually registered
+            return;
+        }
+
+        LOG.info("Handling connection loss - resetting channel and state for re-registration");
+        
+        // Cancel current subscription
+        if (registrationSubscription != null) {
+            registrationSubscription.cancel();
+            registrationSubscription = null;
+        }
+
+        // Reset channel to force re-discovery
+        registrationClient.resetChannel();
+
+        // Reset state to allow re-registration
+        state.set(RegistrationState.UNREGISTERED);
+        serviceId.set(null);
+
+        // Schedule re-registration with a delay
+        Duration reRegistrationDelay = config.retry().initialDelay();
+        LOG.infof("Scheduling re-registration in %s", reRegistrationDelay);
+        
+        // Use a simple delay mechanism - in a real implementation, you might want
+        // to use a scheduler, but for now we'll trigger it immediately with retry logic
+        // The retry logic in registerWithRetry will handle the backoff
+        registerWithRetry();
     }
 }

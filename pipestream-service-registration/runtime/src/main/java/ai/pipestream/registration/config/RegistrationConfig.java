@@ -115,26 +115,82 @@ public interface RegistrationConfig {
     RetryConfig retry();
 
     /**
+     * Configuration for Consul service discovery.
+     */
+    @WithName("consul")
+    ConsulConfig consul();
+
+    /**
+     * Configuration for re-registration behavior.
+     */
+    @WithName("re-registration")
+    ReRegistrationConfig reRegistration();
+
+    /**
      * Registration service connection configuration.
      */
     interface RegistrationServiceConfig {
         /**
          * Host of the platform-registration-service.
+         * Used when discovery-name is not specified.
          */
         @WithDefault("localhost")
         String host();
 
         /**
          * Port of the platform-registration-service.
+         * Used when discovery-name is not specified.
          */
         @WithDefault("9090")
         int port();
+
+        /**
+         * Service name in Consul for discovering platform-registration-service.
+         * If specified, will attempt Consul discovery before falling back to host/port.
+         */
+        @WithName("discovery-name")
+        Optional<String> discoveryName();
+
+        /**
+         * Whether TLS is enabled for the connection to platform-registration-service.
+         */
+        @WithName("tls-enabled")
+        @WithDefault("false")
+        boolean tlsEnabled();
 
         /**
          * Connection timeout.
          */
         @WithDefault("10s")
         Duration timeout();
+    }
+
+    /**
+     * Consul configuration for service discovery.
+     */
+    interface ConsulConfig {
+        /**
+         * Consul host.
+         */
+        @WithDefault("localhost")
+        String host();
+
+        /**
+         * Consul port.
+         */
+        @WithDefault("8500")
+        int port();
+    }
+
+    /**
+     * Re-registration configuration.
+     */
+    interface ReRegistrationConfig {
+        /**
+         * Whether re-registration is enabled when connection is lost.
+         */
+        @WithDefault("true")
+        boolean enabled();
     }
 
     /**
