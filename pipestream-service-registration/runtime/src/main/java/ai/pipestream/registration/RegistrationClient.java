@@ -80,6 +80,8 @@ public class RegistrationClient {
                     }
 
                     LOG.infof("Creating gRPC channel to registration service at %s:%d (TLS: %s)", host, port, tlsEnabled);
+                    LOG.debugf("Channel creation details - host: %s, port: %d, tlsEnabled: %s, discoveryName: %s", 
+                        host, port, tlsEnabled, config.registrationService().discoveryName().orElse("none"));
 
                     ManagedChannelBuilder<?> channelBuilder = ManagedChannelBuilder.forAddress(host, port);
                     
@@ -223,6 +225,9 @@ public class RegistrationClient {
         RegisterRequest request = requestBuilder.build();
 
         LOG.infof("Registering %s: %s", serviceInfo.getType().name(), serviceInfo.getName());
+        LOG.debugf("Registration details - serviceName: %s, advertisedHost: %s, advertisedPort: %d, channelState: %s",
+            serviceInfo.getName(), serviceInfo.getAdvertisedHost(), serviceInfo.getAdvertisedPort(),
+            channel != null ? channel.getState(false).toString() : "null");
 
         return Multi.createFrom().emitter(emitter ->
                 asyncStub.register(request, new StreamObserver<>() {
@@ -238,6 +243,10 @@ public class RegistrationClient {
                     public void onError(Throwable t) {
                         LOG.errorf(t, "Registration failed for %s: %s",
                                 serviceInfo.getType().name(), serviceInfo.getName());
+                        LOG.debugf("Registration error details - errorClass: %s, errorMessage: %s, cause: %s, channelState: %s",
+                            t.getClass().getName(), t.getMessage(),
+                            t.getCause() != null ? t.getCause().getClass().getName() : "null",
+                            channel != null ? channel.getState(false).toString() : "null");
                         emitter.fail(t);
                     }
 
