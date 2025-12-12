@@ -1,12 +1,20 @@
 package ai.pipestream.apicurio.registry.protobuf;
 
 import ai.pipestream.apicurio.registry.protobuf.runtime.ProtobufChannelConfigSource;
+import ai.pipestream.apicurio.registry.protobuf.runtime.ProtobufEmitterImpl;
+import io.quarkus.arc.SyntheticCreationalContext;
 import io.quarkus.runtime.annotations.Recorder;
+import io.smallrye.reactive.messaging.MutinyEmitter;
+import jakarta.enterprise.inject.spi.Bean;
+import jakarta.enterprise.inject.spi.BeanManager;
+import jakarta.enterprise.inject.spi.CDI;
+import jakarta.enterprise.util.AnnotationLiteral;
 import org.eclipse.microprofile.config.ConfigProvider;
+import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.jboss.logging.Logger;
-
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Recorder for Apicurio Registry Protobuf configuration.
@@ -40,6 +48,80 @@ public class ApicurioRegistryProtobufRecorder {
      */
     public void configureProtobufChannels(Set<String> incomingChannels, Set<String> outgoingChannels) {
         ProtobufChannelConfigSource.setChannels(incomingChannels, outgoingChannels);
+    }
+
+    /**
+     * Creates a synthetic bean for {@link ProtobufEmitter}.
+     *
+     * @param channelName the name of the channel
+     * @param messageType the Protobuf message type
+     * @return the bean creator
+     */
+    public Function<SyntheticCreationalContext<ProtobufEmitter<?>>, ProtobufEmitter<?>> createProtobufEmitter(String channelName, Class<?> messageType) {
+        return new Function<SyntheticCreationalContext<ProtobufEmitter<?>>, ProtobufEmitter<?>>() {
+            @Override
+            public ProtobufEmitter<?> apply(SyntheticCreationalContext<ProtobufEmitter<?>> context) {
+                BeanManager beanManager = CDI.current().getBeanManager();
+                
+                // Load the generated Keeper class
+                String keeperClassName = "ai.pipestream.apicurio.registry.protobuf.deployment.ProtobufChannelKeeper";
+                Class<?> keeperClass;
+                try {
+                    keeperClass = Class.forName(keeperClassName, true, Thread.currentThread().getContextClassLoader());
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalStateException("ProtobufChannelKeeper class not found. Ensure the extension is correctly configured.", e);
+                }
+
+                // Lookup the Keeper bean
+                Set<Bean<?>> keeperBeans = beanManager.getBeans(keeperClass);
+                if (keeperBeans.isEmpty()) {
+                    throw new IllegalStateException("ProtobufChannelKeeper bean not found.");
+                }
+                Bean<?> keeperBean = beanManager.resolve(keeperBeans);
+                Object keeperInstance = beanManager.getReference(keeperBean, keeperClass, beanManager.createCreationalContext(keeperBean));
+
+                // Retrieve the specific emitter for the channel
+                MutinyEmitter<?> emitter;
+                try {
+                    emitter = (MutinyEmitter<?>) keeperClass.getMethod("getEmitter", String.class).invoke(keeperInstance, channelName);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to invoke getEmitter on ProtobufChannelKeeper", e);
+                }
+
+                if (emitter == null) {
+                    throw new IllegalStateException("ProtobufChannelKeeper returned null for channel '" + channelName + "'");
+                }
+
+                // Lookup the registry
+                UuidKeyExtractorRegistry registry = (UuidKeyExtractorRegistry) beanManager.getReference(
+                        beanManager.resolve(beanManager.getBeans(UuidKeyExtractorRegistry.class)),
+                        UuidKeyExtractorRegistry.class,
+                        beanManager.createCreationalContext(null)
+                );
+
+                // Create the wrapper
+                @SuppressWarnings({"unchecked", "rawtypes"})
+                ProtobufEmitterImpl<?> impl = new ProtobufEmitterImpl(emitter, registry, messageType);
+
+                return impl;
+            }
+        };
+    }
+
+    /**
+     * Annotation literal for @Channel
+     */
+    public static class ChannelLiteral extends AnnotationLiteral<Channel> implements Channel {
+        private final String value;
+
+        public ChannelLiteral(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String value() {
+            return value;
+        }
     }
 
     /**

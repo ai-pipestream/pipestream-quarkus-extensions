@@ -2,9 +2,8 @@ package ai.pipestream.apicurio.registry.protobuf.deployment;
 
 import ai.pipestream.apicurio.registry.protobuf.ApicurioRegistryProtobufRecorder;
 import ai.pipestream.apicurio.registry.protobuf.ProtobufChannel;
-import ai.pipestream.apicurio.registry.protobuf.ProtobufIncoming;
-import ai.pipestream.apicurio.registry.protobuf.ProtobufOutgoing;
 import ai.pipestream.apicurio.registry.protobuf.ProtobufKafkaHelper;
+import ai.pipestream.apicurio.registry.protobuf.UuidKeyExtractorRegistry;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.arc.deployment.AnnotationsTransformerBuildItem;
 import io.quarkus.deployment.annotations.BuildProducer;
@@ -16,6 +15,7 @@ import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.RunTimeConfigurationDefaultBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
+import jakarta.inject.Qualifier;
 import org.jboss.jandex.*;
 import org.jboss.logging.Logger;
 
@@ -25,36 +25,6 @@ import java.util.Set;
 
 /**
  * Build-time processor for Apicurio Registry Protobuf extension.
- *
- * <p>
- * This processor automatically configures Kafka channels for Protobuf message serialization and deserialization
- * by detecting Protobuf types in {@code @Incoming}, {@code @Outgoing}, and {@code @Channel} annotations.
- * </p>
- *
- * <h3>Key Features</h3>
- * <ul>
- *   <li><strong>Auto-Detection:</strong> Scans for methods and fields using Protobuf types (classes extending {@code MessageLite}).</li>
- *   <li><strong>Configuration Generation:</strong> Automatically sets the following properties for detected channels:
- *     <ul>
- *       <li>{@code value.serializer} or {@code value.deserializer} to Apicurio Protobuf Serde.</li>
- *       <li>{@code connector} to {@code smallrye-kafka} (if not already set).</li>
- *     </ul>
- *   </li>
- *   <li><strong>Native Image Support:</strong> Registers necessary Apicurio and Protobuf classes for reflection.</li>
- * </ul>
- *
- * <h3>Configuration</h3>
- * <p>
- * The extension relies on the following global properties being set in {@code application.properties}:
- * </p>
- * <ul>
- *   <li>{@code mp.messaging.connector.smallrye-kafka.apicurio.registry.url}</li>
- *   <li>{@code kafka.bootstrap.servers}</li>
- * </ul>
- *
- * @see ProtobufIncoming
- * @see ProtobufOutgoing
- * @see ProtobufChannel
  */
 class ApicurioRegistryProtobufProcessor {
 
@@ -62,22 +32,15 @@ class ApicurioRegistryProtobufProcessor {
 
     private static final String FEATURE = "apicurio-registry-protobuf";
 
-    // Protobuf base types (MessageLite is the root interface, GeneratedMessage is the base class)
     private static final DotName MESSAGE_LITE = DotName.createSimple("com.google.protobuf.MessageLite");
     private static final DotName GENERATED_MESSAGE = DotName.createSimple("com.google.protobuf.GeneratedMessage");
-
-    // SmallRye Kafka Record type (Record<K, V> - check V for Protobuf)
     private static final DotName RECORD = DotName.createSimple("io.smallrye.reactive.messaging.kafka.Record");
     private static final DotName UUID = DotName.createSimple("java.util.UUID");
-
-    // Standard Reactive Messaging annotations
+    
     private static final DotName INCOMING = DotName.createSimple("org.eclipse.microprofile.reactive.messaging.Incoming");
     private static final DotName OUTGOING = DotName.createSimple("org.eclipse.microprofile.reactive.messaging.Outgoing");
     private static final DotName CHANNEL = DotName.createSimple("org.eclipse.microprofile.reactive.messaging.Channel");
 
-    // Our custom Protobuf annotations
-    private static final DotName PROTOBUF_INCOMING = DotName.createSimple("ai.pipestream.apicurio.registry.protobuf.ProtobufIncoming");
-    private static final DotName PROTOBUF_OUTGOING = DotName.createSimple("ai.pipestream.apicurio.registry.protobuf.ProtobufOutgoing");
     private static final DotName PROTOBUF_CHANNEL = DotName.createSimple("ai.pipestream.apicurio.registry.protobuf.ProtobufChannel");
 
     @BuildStep
@@ -90,84 +53,33 @@ class ApicurioRegistryProtobufProcessor {
         return new ExtensionSslNativeSupportBuildItem(FEATURE);
     }
 
-    /**
-     * Register CDI beans provided by the extension.
-     */
     @BuildStep
     AdditionalBeanBuildItem registerBeans() {
         return AdditionalBeanBuildItem.builder()
-                .addBeanClasses(ProtobufKafkaHelper.class)
+                .addBeanClasses(ProtobufKafkaHelper.class, ProtobufChannel.class, UuidKeyExtractorRegistry.class)
                 .setUnremovable()
                 .build();
     }
-
-    /**
-     * Transform @ProtobufIncoming, @ProtobufOutgoing, and @ProtobufChannel annotations
-     * into standard SmallRye Reactive Messaging annotations.
-     * <p>
-     * This allows users to use our simplified annotations while SmallRye sees the standard ones.
-     */
+    
     @BuildStep
-    AnnotationsTransformerBuildItem transformProtobufAnnotations() {
+    AnnotationsTransformerBuildItem transformProtobufChannelQualifier() {
         return new AnnotationsTransformerBuildItem(new AnnotationTransformation() {
             @Override
             public boolean supports(AnnotationTarget.Kind kind) {
-                return kind == AnnotationTarget.Kind.METHOD
-                        || kind == AnnotationTarget.Kind.FIELD
-                        || kind == AnnotationTarget.Kind.METHOD_PARAMETER;
+                return kind == AnnotationTarget.Kind.CLASS;
             }
 
             @Override
             public void apply(TransformationContext ctx) {
-                // Check for our custom annotations
-                AnnotationInstance protobufIncoming = ctx.annotations().stream()
-                        .filter(a -> a.name().equals(PROTOBUF_INCOMING))
-                        .findFirst().orElse(null);
-                AnnotationInstance protobufOutgoing = ctx.annotations().stream()
-                        .filter(a -> a.name().equals(PROTOBUF_OUTGOING))
-                        .findFirst().orElse(null);
-                AnnotationInstance protobufChannel = ctx.annotations().stream()
-                        .filter(a -> a.name().equals(PROTOBUF_CHANNEL))
-                        .findFirst().orElse(null);
-
-                // Transform @ProtobufIncoming -> @Incoming
-                if (protobufIncoming != null) {
-                    String channelName = protobufIncoming.value().asString();
-                    ctx.remove(ann -> ann.name().equals(PROTOBUF_INCOMING));
-                    ctx.add(AnnotationInstance.create(INCOMING, ctx.declaration(),
-                            List.of(AnnotationValue.createStringValue("value", channelName))));
-                    LOGGER.debugf("Transformed @ProtobufIncoming to @Incoming for channel: %s", channelName);
-                }
-
-                // Transform @ProtobufOutgoing -> @Outgoing
-                if (protobufOutgoing != null) {
-                    String channelName = protobufOutgoing.value().asString();
-                    ctx.remove(ann -> ann.name().equals(PROTOBUF_OUTGOING));
-                    ctx.add(AnnotationInstance.create(OUTGOING, ctx.declaration(),
-                            List.of(AnnotationValue.createStringValue("value", channelName))));
-                    LOGGER.debugf("Transformed @ProtobufOutgoing to @Outgoing for channel: %s", channelName);
-                }
-
-                // Transform @ProtobufChannel -> @Channel
-                if (protobufChannel != null) {
-                    String channelName = protobufChannel.value().asString();
-                    ctx.remove(ann -> ann.name().equals(PROTOBUF_CHANNEL));
-                    ctx.add(AnnotationInstance.create(CHANNEL, ctx.declaration(),
-                            List.of(AnnotationValue.createStringValue("value", channelName))));
-                    LOGGER.debugf("Transformed @ProtobufChannel to @Channel for channel: %s", channelName);
+                if (ctx.declaration().asClass().name().equals(PROTOBUF_CHANNEL)) {
+                    ctx.add(AnnotationInstance.create(DotName.createSimple(Qualifier.class.getName()), ctx.declaration(), List.of()));
                 }
             }
         });
     }
-
+    
     /**
      * Auto-detect Kafka channels using Protobuf types and configure serializer/deserializer.
-     * <p>
-     * This scans for:
-     * - @ProtobufIncoming/@ProtobufOutgoing/@ProtobufChannel (our annotations - always configured)
-     * - @Incoming/@Outgoing/@Channel with Protobuf message types (backward compatible auto-detection)
-     * <p>
-     * Uses STATIC_INIT to configure the high-priority ConfigSource before config is read.
      */
     @SuppressWarnings("PointlessNullCheck")
     @BuildStep
@@ -181,22 +93,6 @@ class ApicurioRegistryProtobufProcessor {
         IndexView index = combinedIndex.getIndex();
         Set<String> configuredIncoming = new HashSet<>();
         Set<String> configuredOutgoing = new HashSet<>();
-
-        // === Scan our custom @ProtobufIncoming annotations (always configure) ===
-        for (AnnotationInstance annotation : index.getAnnotations(PROTOBUF_INCOMING)) {
-            String channelName = annotation.value().asString();
-            if (configuredIncoming.add(channelName)) {
-                LOGGER.debugf("Configuring @ProtobufIncoming channel: %s", channelName);
-            }
-        }
-
-        // === Scan our custom @ProtobufOutgoing annotations (always configure) ===
-        for (AnnotationInstance annotation : index.getAnnotations(PROTOBUF_OUTGOING)) {
-            String channelName = annotation.value().asString();
-            if (configuredOutgoing.add(channelName)) {
-                LOGGER.debugf("Configuring @ProtobufOutgoing channel: %s", channelName);
-            }
-        }
 
         // === Scan our custom @ProtobufChannel annotations (always configure as outgoing) ===
         for (AnnotationInstance annotation : index.getAnnotations(PROTOBUF_CHANNEL)) {
@@ -265,6 +161,8 @@ class ApicurioRegistryProtobufProcessor {
 
         LOGGER.infof("Configured %d incoming and %d outgoing Protobuf channels",
                 configuredIncoming.size(), configuredOutgoing.size());
+        LOGGER.infof("Incoming Channels: %s", configuredIncoming);
+        LOGGER.infof("Outgoing Channels: %s", configuredOutgoing);
 
         // Inject connector defaults via BuildItem (needed for DevServices to see at build time)
         for (String channelName : configuredIncoming) {
@@ -277,7 +175,6 @@ class ApicurioRegistryProtobufProcessor {
         }
 
         // Configure the high-priority ConfigSource via recorder at STATIC_INIT
-        // This sets serializer/deserializer with high priority to override SmallRye defaults
         if (!configuredIncoming.isEmpty() || !configuredOutgoing.isEmpty()) {
             recorder.configureProtobufChannels(configuredIncoming, configuredOutgoing);
             channelsBuildItem.produce(new ProtobufChannelsBuildItem(true));
@@ -292,10 +189,6 @@ class ApicurioRegistryProtobufProcessor {
         recorder.validateConfig(channels.hasChannels());
     }
 
-    /**
-     * Check if a type is a Protobuf message type (extends MessageLite).
-     * Note: Only check MessageLite, NOT GeneratedMessageV3 as per user requirement.
-     */
     private boolean isProtobufType(IndexView index, Type type) {
         if (type == null) {
             return false;

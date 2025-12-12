@@ -2,7 +2,7 @@
 
 A Quarkus extension for seamless Protobuf serialization with Kafka and [Apicurio Registry](https://www.apicur.io/registry/) v3.
 
-This extension **auto-detects Protobuf message types** in your Kafka channels and automatically configures the correct serializers/deserializers - no manual configuration required.
+This extension **auto-detects Protobuf message types** in your Kafka channels and automatically configures the correct serializers/deserializers - no manual configuration required. It also enforces **UUID keys** for robust partitioning and deduplication.
 
 ## Features
 
@@ -47,107 +47,155 @@ implementation 'ai.pipestream:quarkus-apicurio-registry-protobuf:0.0.1-SNAPSHOT'
 
 ### 2. Define your Protobuf message
 
-Create `src/main/proto/order.proto`:
+Create `src/main/proto/orders.proto`:
 
 ```protobuf
 syntax = "proto3";
+
 package com.example.orders;
 
-option java_package = "com.example.orders.proto";    // (1) Generated Java package
-option java_outer_classname = "OrderProtos";         // (2) Wrapper class name
+option java_package = "com.example.orders.proto";
+option java_outer_classname = "OrderProtos";
 
-message OrderEvent {
-  string order_id = 1;                               // (3) Unique order identifier
-  string customer_id = 2;
-  double amount = 3;
-  int64 timestamp = 4;                               // (4) Unix timestamp in millis
-  map<string, string> metadata = 5;                  // (5) Extensible key-value pairs
+message Order {
+  string order_id = 1; // This will be our UUID key
+  string item = 2;
+  double price = 3;
 }
 ```
 
-1. **java_package** - Controls where generated Java classes are placed
-2. **java_outer_classname** - The outer class that contains all message classes
-3. **Field numbers** - Protobuf uses numbers (not names) for wire format; never reuse deleted field numbers
-4. **int64 for timestamps** - Use `int64` for epoch milliseconds; Protobuf has no native timestamp type
-5. **map type** - Native Protobuf map support for flexible metadata without schema changes
+### 3. Implement a Key Extractor (Crucial)
 
-### 3. Create a producer
+You **must** define how to extract the UUID key from your message if you want to use the simplified `send(message)` method. This bean is auto-discovered.
 
 ```java
-@ApplicationScoped                                   // (1) CDI bean scope
-public class OrderProducer {
+package com.example.orders;
 
-    @Inject                                          // (2) CDI injection
-    @Channel("orders-out")                           // (3) Channel name - links to config
-    Emitter<OrderEvent> emitter;                     // (4) Type-safe emitter for Protobuf
+import ai.pipestream.apicurio.registry.protobuf.UuidKeyExtractor;
+import jakarta.enterprise.context.ApplicationScoped;
+import java.util.UUID;
 
-    public void sendOrder(String customerId, double amount) {
-        OrderEvent order = OrderEvent.newBuilder()   // (5) Protobuf builder pattern
-                .setOrderId(UUID.randomUUID().toString())
-                .setCustomerId(customerId)
-                .setAmount(amount)
-                .setTimestamp(System.currentTimeMillis())
-                .putMetadata("source", "order-service")
-                .build();                            // (6) Immutable message created
+@ApplicationScoped
+public class OrderKeyExtractor implements UuidKeyExtractor<Order> {
 
-        emitter.send(order);                         // (7) Send to Kafka
+    @Override
+    public UUID extractKey(Order order) {
+        // Convert the string ID to a UUID
+        return UUID.fromString(order.getOrderId());
     }
 }
 ```
 
-1. **@ApplicationScoped** - Single instance shared across the application
-2. **@Inject** - CDI injects the emitter at runtime
-3. **@Channel** - Binds to `mp.messaging.outgoing.orders-out.*` properties
-4. **Emitter&lt;OrderEvent&gt;** - Extension detects `OrderEvent extends MessageLite` and auto-configures serializer
-5. **newBuilder()** - Protobuf messages are immutable; use builder to construct
-6. **build()** - Validates required fields and creates immutable instance
-7. **send()** - Asynchronously sends to Kafka; message is serialized via `ProtobufKafkaSerializer`
+### 4. Create a producer
 
-### 4. Create a consumer
+Inject the `ProtobufEmitter` using the `@ProtobufChannel` annotation. This gives you the type-safe, key-aware emitter.
 
 ```java
+package com.example.orders;
+
+import ai.pipestream.apicurio.registry.protobuf.ProtobufChannel;
+import ai.pipestream.apicurio.registry.protobuf.ProtobufEmitter;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import java.util.UUID;
+
+@ApplicationScoped
+public class OrderProducer {
+
+    // 1. Inject the typed emitter. 
+    // The extension automatically wires this to the "orders-out" Kafka channel.
+    @Inject
+    @ProtobufChannel("orders-out")
+    ProtobufEmitter<Order> orderEmitter;
+
+    public void createOrder(String id, String item, double price) {
+        Order order = Order.newBuilder()
+                .setOrderId(id)
+                .setItem(item)
+                .setPrice(price)
+                .build();
+
+        // 2. Send with Implicit Key
+        // The extension finds OrderKeyExtractor, extracts the UUID, and sends it as the Kafka Key.
+        orderEmitter.send(order); 
+    }
+
+    public void rebalanceOrder(UUID newKey, Order order) {
+        // 3. Send with Explicit Key (overrides the extractor)
+        orderEmitter.send(newKey, order);
+    }
+}
+```
+
+### 5. Create a consumer
+
+Use the standard `@Incoming` annotation. The extension automatically configures the deserializer to handle `Record<UUID, YourProto>`.
+
+```java
+package com.example.orders;
+
+import io.smallrye.reactive.messaging.kafka.Record;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import jakarta.enterprise.context.ApplicationScoped;
+import java.util.UUID;
+
 @ApplicationScoped
 public class OrderConsumer {
 
-    private static final Logger LOG = LoggerFactory.getLogger(OrderConsumer.class);
+    // The extension auto-detects 'Order' type and configures the Protobuf deserializer
+    @Incoming("orders-in")
+    public void processOrder(Record<UUID, Order> record) {
+        UUID key = record.key();
+        Order order = record.value();
 
-    @Incoming("orders-in")                           // (1) Channel name - links to config
-    public void processOrder(OrderEvent order) {    // (2) Protobuf type auto-detected
-        LOG.info("Received order: {} for customer {} - ${}",
-                order.getOrderId(),                  // (3) Type-safe getter
-                order.getCustomerId(),
-                order.getAmount());
+        System.out.printf("Processing Order [%s]: %s ($%.2f)%n", 
+            key, order.getItem(), order.getPrice());
     }
 }
 ```
 
-1. **@Incoming** - Binds to `mp.messaging.incoming.orders-in.*` properties
-2. **OrderEvent parameter** - Extension detects Protobuf type and configures `ProtobufKafkaDeserializer`
-3. **Type-safe getters** - Generated code provides null-safe accessors; no casting required
+### 6. Configure application.properties
 
-### 5. Configure application.properties
+The extension removes the need for verbose serializer/deserializer config. You mostly just need to point to the Apicurio Registry.
 
 ```properties
-# Kafka connector (required for DevServices to detect channels)
-mp.messaging.outgoing.orders-out.connector=smallrye-kafka   # (1)
-mp.messaging.incoming.orders-in.connector=smallrye-kafka
+# 1. Apicurio Registry URL (Required)
+# Note: DevServices will set this automatically in dev/test mode.
+# In production, point it to your registry instance.
+%prod.mp.messaging.connector.smallrye-kafka.apicurio.registry.url=http://localhost:8080/apis/registry/v3
 
-# Topic configuration
-mp.messaging.outgoing.orders-out.topic=orders               # (2)
-mp.messaging.incoming.orders-in.topic=orders                # (3)
+# 2. Configure Topics (Standard SmallRye)
+mp.messaging.outgoing.orders-out.topic=orders
+mp.messaging.incoming.orders-in.topic=orders
+
+# 3. (Optional) The extension automatically sets these, but you can override them:
+# mp.messaging.outgoing.orders-out.value.serializer=io.apicurio.registry.serde.protobuf.ProtobufSerializer
+# mp.messaging.incoming.orders-in.value.deserializer=io.apicurio.registry.serde.protobuf.ProtobufDeserializer
 ```
 
-1. **connector** - Required; tells Quarkus this channel uses Kafka (enables DevServices)
-2. **topic (outgoing)** - Kafka topic name; if omitted, defaults to channel name (`orders-out`)
-3. **topic (incoming)** - Must match producer's topic to receive messages
+---
 
-### 6. Run it!
+## How It Works (Under the Hood)
 
-```bash
-./gradlew quarkusDev
-```
+This extension performs significant "magic" at build time to simplify your development experience while adhering to Quarkus's build-time optimization philosophy.
 
-DevServices automatically starts Kafka and Apicurio Registry. That's it!
+1.  **Build Time Scanning**: 
+    The extension scans your code for `@ProtobufChannel` injections. For each detected channel (e.g., "orders-out"), it generates a hidden **"Keeper" bean** (`ProtobufChannelKeeper`). 
+    
+    This Keeper bean explicitly injects the standard SmallRye `MutinyEmitter` for that channel. This is crucial because standard SmallRye logic only creates Kafka channels if it sees them being used. Without this generated Keeper, SmallRye would optimize away the channel as "unused."
+
+2.  **Synthetic Bean Registration**:
+    For every `@ProtobufChannel` injection point, the extension registers a **Synthetic Bean** of type `ProtobufEmitter<T>`. This bean acts as a smart wrapper.
+
+3.  **Runtime Wiring**:
+    When your application starts, the `ProtobufEmitter` bean is instantiated. It retrieves the underlying `MutinyEmitter` from the generated Keeper bean. This ensures that the emitter you use is fully wired into the Reactive Messaging system.
+
+4.  **Execution Flow**:
+    When you call `emitter.send(message)`:
+    *   The emitter looks up the registered `UuidKeyExtractor` for your message type.
+    *   It extracts the UUID key.
+    *   It dispatches a Kafka record with `Key=UUID` and `Value=Protobuf`.
+    *   The `ProtobufKafkaSerializer` handles the serialization and schema registration with Apicurio.
 
 ---
 
@@ -258,154 +306,6 @@ mp.messaging.incoming.orders-stream-in.topic=orders-reactive   # (2)
 | **Uni return (reactive consumer)** | Async processing, non-blocking I/O, backpressure control |
 
 ---
-
-## UUID Keys (Enforced)
-
-This extension enforces **UUID keys** for all Kafka messages. String keys are not supported - this is an opinionated design choice that ensures:
-
-- **Idempotency** - Deterministic keys enable replay without duplicates
-- **Partitioning** - Consistent key-based routing to partitions
-- **Compaction** - Meaningful log compaction with unique identifiers
-
-### Key Extractor Pattern
-
-Implement `UuidKeyExtractor<T>` to define how UUIDs are derived from your messages:
-
-```java
-@ApplicationScoped
-public class OrderEventKeyExtractor implements UuidKeyExtractor<OrderEvent> {
-
-    @Override
-    public UUID extractKey(OrderEvent message) {           // (1) Extract from message
-        return UUID.fromString(message.getOrderId());      // (2) Parse UUID from field
-    }
-}
-```
-
-1. **extractKey()** - Called for each message to derive its partition key
-2. **UUID.fromString()** - Parse from string field; could also use UUIDv5 for deterministic generation
-
-### Sending with UUID Keys
-
-Use the `ProtobufKafkaHelper` CDI service to send messages with UUID keys:
-
-```java
-@ApplicationScoped
-public class OrderService {
-
-    @Inject
-    @Channel("orders-out")
-    Emitter<OrderEvent> emitter;                          // (1) Standard SmallRye emitter
-
-    @Inject
-    ProtobufKafkaHelper kafka;                            // (2) CDI service for UUID keys
-
-    @Inject
-    OrderEventKeyExtractor keyExtractor;                  // (3) Your key extractor
-
-    // Option 1: Explicit UUID key
-    public void sendWithExplicitKey(UUID orderId, OrderEvent order) {
-        kafka.send(emitter, orderId, order);              // (4) Pass UUID directly
-    }
-
-    // Option 2: Extract key from message
-    public void sendWithExtractor(OrderEvent order) {
-        kafka.send(emitter, order, keyExtractor);         // (5) Use extractor
-    }
-
-    // Option 3: Inline lambda
-    public void sendWithLambda(OrderEvent order) {
-        kafka.send(emitter, order,
-                o -> UUID.fromString(o.getOrderId()));    // (6) One-off extraction
-    }
-}
-```
-
-1. **@Channel emitter** - Standard SmallRye emitter, unchanged
-2. **ProtobufKafkaHelper** - Injected service that handles UUID key metadata
-3. **Key extractor** - Your implementation, injected for reuse
-4. **Explicit UUID** - Use when UUID comes from external source (database, request)
-5. **With extractor** - Consistent key derivation across your service
-6. **Inline lambda** - Quick one-off cases
-
-### Consuming with UUID Key Access
-
-Access the UUID key via Kafka metadata:
-
-```java
-@ApplicationScoped
-public class OrderProcessor {
-
-    @Incoming("orders-in")
-    public CompletionStage<Void> process(Message<OrderEvent> message) {
-        OrderEvent order = message.getPayload();          // (1) Get Protobuf payload
-
-        // Access UUID key from Kafka metadata
-        IncomingKafkaRecordMetadata<UUID, OrderEvent> meta =
-                message.getMetadata(IncomingKafkaRecordMetadata.class)
-                        .orElse(null);                    // (2) Get Kafka metadata
-
-        if (meta != null) {
-            UUID key = meta.getKey();                     // (3) Extract UUID key
-            LOG.info("Processing order: key={}, id={}",
-                    key, order.getOrderId());
-        }
-
-        return message.ack();                             // (4) Acknowledge
-    }
-}
-```
-
-1. **getPayload()** - Extracts the deserialized Protobuf message
-2. **getMetadata()** - Access Kafka-specific metadata including key, partition, offset
-3. **getKey()** - Returns the UUID key (auto-deserialized via `UUIDDeserializer`)
-4. **ack()** - Acknowledge successful processing
-
-### RandomUuidKeyExtractor (Testing Only)
-
-For testing or prototyping, a `RandomUuidKeyExtractor` is provided - but it logs a warning:
-
-```java
-// DO NOT USE IN PRODUCTION
-@Inject
-RandomUuidKeyExtractor<OrderEvent> randomExtractor;
-
-kafka.send(emitter, order, randomExtractor);
-// Logs: "RandomUuidKeyExtractor is being used! DO NOT USE IN PRODUCTION"
-```
-
-Random UUIDs break idempotency and replay. Always implement a proper `UuidKeyExtractor` for production.
-
----
-
-## How It Works
-
-```mermaid
-flowchart TB
-    subgraph Build Time
-        A[Jandex Scan] --> B{Protobuf Type?}
-        B -->|Yes| C[Register Channel]
-        C --> D[Configure Serde]
-    end
-
-    subgraph Runtime
-        D --> E[ProtobufKafkaSerializer]
-        D --> F[ProtobufKafkaDeserializer]
-        E --> G[Auto-register Schema]
-        F --> H[Derive Message Class]
-    end
-```
-
-At **build time**, the extension:
-1. Scans your code for `@Incoming`, `@Outgoing`, and `@Channel` annotations
-2. Detects if the message type extends `com.google.protobuf.MessageLite`
-3. Automatically configures the Protobuf serializer/deserializer for those channels
-
-At **runtime**, the extension:
-1. Uses `ProtobufKafkaSerializer` to serialize outgoing messages
-2. Auto-registers the Protobuf schema with Apicurio Registry
-3. Uses `ProtobufKafkaDeserializer` to deserialize incoming messages
-4. Derives the correct Java class from the schema registry
 
 ## Configuration Reference
 
