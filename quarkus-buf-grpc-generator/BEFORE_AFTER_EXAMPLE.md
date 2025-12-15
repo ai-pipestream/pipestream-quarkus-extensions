@@ -170,10 +170,11 @@ dependencies {
 | **Lines of config** | 68+ | 15 |
 | **Add new module** | +10 lines (copy task) | +5 lines (register block) |
 | **Git fallback** | Not supported | Built-in (`-PprotoSource=git`) |
-| **Buf CLI handling** | Manual PATH setup | Hermetic (plugin manages) |
+| **Buf CLI handling** | Manual PATH setup | Hermetic (downloaded from Maven) |
+| **Protoc handling** | Depends on Quarkus | Downloaded from Maven |
 | **Task wiring** | Manual, error-prone | Automatic |
 | **IDE support** | Manual sourceSet | Automatic |
-| **Quarkus integration** | Manual properties | Automatic |
+| **Data privacy** | Quarkus may use remote | 100% local generation |
 
 ---
 
@@ -184,6 +185,7 @@ dependencies {
 ./gradlew fetchProtos
 ```
 - Iterates over registered modules
+- Downloads `buf` CLI from Maven Central (no PATH required)
 - Runs `buf export <bsr-or-git> --output build/protos/export/<module>`
 - Handles authentication (BSR tokens, Git SSH/HTTPS)
 
@@ -191,20 +193,29 @@ dependencies {
 ```
 ./gradlew prepareGenerators
 ```
+- Downloads `protoc` from Maven Central
+- Downloads `protoc-gen-grpc-java` from Maven Central
 - Resolves `quarkus-grpc-protoc-plugin.jar` from Maven
 - Generates `protoc-gen-mutiny` wrapper script
-- Generates `buf.gen.yaml` with all plugins configured
+- Generates `buf.gen.yaml` (v2 format) with **LOCAL plugins only**
 
 ### Phase 3: Generate
 ```
 ./gradlew generateProtos
 ```
 - Runs `buf generate` with:
-  - Remote plugin: `buf.build/protocolbuffers/java` (POJOs)
-  - Remote plugin: `buf.build/grpc/java` (gRPC stubs)
-  - Local plugin: `protoc-gen-mutiny` (Quarkus Mutiny stubs)
+  - **Local plugin:** `protoc_builtin: java` (uses downloaded protoc)
+  - **Local plugin:** `protoc-gen-grpc-java` (uses downloaded binary)
+  - **Local plugin:** `protoc-gen-mutiny` (uses wrapper script)
+- **No proto files are uploaded to any server**
 - Adds output directory to main sourceSet
 - Wires into `compileJava` automatically
+
+### Phase 4: Descriptors (Optional)
+```
+./gradlew buildDescriptors
+```
+- Builds `proto.desc` FileDescriptorSet for reflection/dynamic use
 
 ---
 
@@ -249,16 +260,58 @@ The plugin will:
 
 ---
 
+## Air-Gapped Environment Support
+
+For environments without internet access:
+
+```groovy
+pipestreamProtos {
+    // Use pre-installed binaries instead of Maven download
+    protocPath = '/opt/protobuf/bin/protoc'
+    grpcJavaPluginPath = '/opt/grpc/protoc-gen-grpc-java'
+
+    modules {
+        // Use Git with local mirror
+        register("intake") {
+            gitRepo = "git@internal-git:pipestream/protos.git"
+            gitRef = "main"
+            gitSubdir = "intake"
+        }
+    }
+}
+```
+
+---
+
 ## Gradle Tasks Provided
 
 | Task | Description |
 |------|-------------|
 | `fetchProtos` | Downloads protos from BSR or Git |
-| `prepareGenerators` | Creates wrapper scripts and buf.gen.yaml |
-| `generateProtos` | Runs buf generate with all plugins |
+| `prepareGenerators` | Downloads binaries, creates wrapper scripts and buf.gen.yaml |
+| `generateProtos` | Runs buf generate with LOCAL plugins |
+| `buildDescriptors` | Builds protobuf descriptor files (if enabled) |
 | `cleanProtos` | Removes all generated proto artifacts |
-| `lintProtos` | Runs buf lint on exported protos (future) |
-| `checkBreaking` | Checks for breaking changes (future) |
+
+---
+
+## Configuration Options
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `sourceMode` | `'bsr'` | Proto source: `'bsr'` or `'git'` |
+| `bufVersion` | `'1.61.0'` | Buf CLI version |
+| `protocVersion` | `'4.33.2'` | Protoc compiler version |
+| `grpcJavaVersion` | `'1.77.0'` | gRPC Java plugin version |
+| `quarkusGrpcVersion` | `'3.30.3'` | Quarkus Mutiny generator version |
+| `protocPath` | `null` | Custom protoc path (skips Maven) |
+| `grpcJavaPluginPath` | `null` | Custom grpc-java path (skips Maven) |
+| `generateGrpc` | `true` | Generate gRPC stubs |
+| `generateMutiny` | `true` | Generate Mutiny stubs |
+| `generateDescriptors` | `true` | Generate proto.desc file |
+| `outputDir` | `build/generated/source/proto/main/java` | Generated code location |
+| `descriptorPath` | `build/descriptors/proto.desc` | Descriptor file location |
+| `bufGenerateArgs` | `[]` | Extra buf generate arguments |
 
 ---
 
@@ -269,6 +322,7 @@ The plugin will:
 
 The plugin provides:
 - **Simplicity**: Declare what you need, not how to get it
-- **Flexibility**: BSR or Git with a flag
+- **Security**: 100% local generation, no proto uploads
+- **Flexibility**: BSR or Git with a flag, custom binaries supported
 - **Reliability**: Hermetic builds, no shell dependencies
 - **Maintainability**: One place to update, all projects benefit
