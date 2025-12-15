@@ -8,6 +8,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/quarkus-apicurio-registry-protobuf?label=apicurio)](https://central.sonatype.com/artifact/ai.pipestream/quarkus-apicurio-registry-protobuf)
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/quarkus-dynamic-grpc?label=dynamic-grpc)](https://central.sonatype.com/artifact/ai.pipestream/quarkus-dynamic-grpc)
 [![Maven Central](https://img.shields.io/maven-central/v/ai.pipestream/pipestream-service-registration?label=service-reg)](https://central.sonatype.com/artifact/ai.pipestream/pipestream-service-registration)
+[![Gradle Plugin](https://img.shields.io/badge/Gradle-proto--toolchain-blue.svg)](quarkus-buf-grpc-generator/)
 
 Monorepo for Pipestream platform libraries - Quarkus extensions, BOM, Gradle plugins, and utility libraries for the Pipestream AI platform.
 
