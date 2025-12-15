@@ -83,8 +83,8 @@ subprojects {
         }
     }
     
-    // Configure Java projects (excluding BOM)
-    if (project.name != 'bom') {
+    // Configure Java projects (excluding BOM and Gradle plugins which have their own publishing)
+    if (project.name != 'bom' && project.name != 'quarkus-buf-grpc-generator') {
         apply plugin: 'java'
         
         java {
