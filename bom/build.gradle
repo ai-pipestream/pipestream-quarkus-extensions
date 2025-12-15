@@ -56,7 +56,9 @@ dependencies {
         // ========================
         // Pipestream Gradle Plugins
         // ========================
-        api project(':quarkus-buf-grpc-generator')
+        // Note: quarkus-buf-grpc-generator is managed via includeBuild for plugin resolution
+        // Reference by coordinates when published to Maven Central
+        api "ai.pipestream:quarkus-buf-grpc-generator:${version}"
 
         // ========================
         // Pipestream Internal Libraries
