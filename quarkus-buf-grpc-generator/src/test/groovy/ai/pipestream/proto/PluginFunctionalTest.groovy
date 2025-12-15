@@ -48,6 +48,10 @@ class PluginFunctionalTest extends Specification {
                 id 'java'
             }
 
+            repositories {
+                mavenCentral()
+            }
+
             pipestreamProtos {
                 modules {
                     register("test-module") {
@@ -76,6 +80,10 @@ class PluginFunctionalTest extends Specification {
             plugins {
                 id 'ai.pipestream.proto-toolchain'
                 id 'java'
+            }
+
+            repositories {
+                mavenCentral()
             }
 
             pipestreamProtos {
@@ -391,6 +399,10 @@ class PluginFunctionalTest extends Specification {
             plugins {
                 id 'ai.pipestream.proto-toolchain'
                 id 'java'
+            }
+
+            repositories {
+                mavenCentral()
             }
         """
 

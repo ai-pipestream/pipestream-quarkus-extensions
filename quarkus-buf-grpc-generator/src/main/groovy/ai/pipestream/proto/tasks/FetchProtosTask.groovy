@@ -3,9 +3,11 @@ package ai.pipestream.proto.tasks
 import ai.pipestream.proto.ProtoModule
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
@@ -33,6 +35,12 @@ abstract class FetchProtosTask extends DefaultTask {
      */
     @OutputDirectory
     abstract DirectoryProperty getExportDir()
+
+    /**
+     * The buf executable (resolved from Maven Central).
+     */
+    @InputFiles
+    abstract ConfigurableFileCollection getBufExecutable()
 
     /**
      * The modules to fetch. Marked @Internal because the container
@@ -77,6 +85,17 @@ abstract class FetchProtosTask extends DefaultTask {
         logger.lifecycle("Fetched ${modules.size()} module(s) to ${exportDir}")
     }
 
+    /**
+     * Resolves the buf executable file, ensuring it's executable.
+     */
+    protected File resolveBufBinary() {
+        def executable = getBufExecutable().singleFile
+        if (!executable.canExecute()) {
+            executable.setExecutable(true)
+        }
+        return executable
+    }
+
     protected void fetchFromBsr(ProtoModule module, File outputDir) {
         def bsr = module.bsr.getOrNull()
         if (!bsr) {
@@ -86,9 +105,11 @@ abstract class FetchProtosTask extends DefaultTask {
 
         logger.lifecycle("Exporting ${module.name} from BSR: ${bsr}")
 
+        def bufBinary = resolveBufBinary()
+        logger.info("Using buf binary: ${bufBinary.absolutePath}")
+
         ExecResult result = getExecOperations().exec { spec ->
-            // Use bash -lc to ensure buf is in PATH (sdkman, homebrew, etc.)
-            spec.commandLine 'bash', '-lc', "buf export ${bsr} --output ${outputDir.absolutePath}"
+            spec.commandLine bufBinary.absolutePath, 'export', bsr, '--output', outputDir.absolutePath
             spec.ignoreExitValue = true
         }
 
@@ -96,7 +117,7 @@ abstract class FetchProtosTask extends DefaultTask {
             throw new GradleException(
                 "Failed to export '${module.name}' from BSR: ${bsr}\n" +
                 "Exit code: ${result.exitValue}\n" +
-                "Ensure 'buf' CLI is installed and you're authenticated to BSR."
+                "Ensure you're authenticated to BSR (run 'buf registry login')."
             )
         }
     }
@@ -120,8 +141,11 @@ abstract class FetchProtosTask extends DefaultTask {
 
         logger.lifecycle("Exporting ${module.name} from Git: ${gitRepo} (ref=${gitRef}, subdir=${gitSubdir})")
 
+        def bufBinary = resolveBufBinary()
+        logger.info("Using buf binary: ${bufBinary.absolutePath}")
+
         ExecResult result = getExecOperations().exec { spec ->
-            spec.commandLine 'bash', '-lc', "buf export ${bufGitUrl} --output ${outputDir.absolutePath}"
+            spec.commandLine bufBinary.absolutePath, 'export', bufGitUrl, '--output', outputDir.absolutePath
             spec.ignoreExitValue = true
         }
 
@@ -129,7 +153,7 @@ abstract class FetchProtosTask extends DefaultTask {
             throw new GradleException(
                 "Failed to export '${module.name}' from Git: ${gitRepo}\n" +
                 "Exit code: ${result.exitValue}\n" +
-                "Ensure 'buf' CLI is installed and you have access to the repository."
+                "Ensure you have access to the repository."
             )
         }
     }

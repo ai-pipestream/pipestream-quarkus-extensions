@@ -2,9 +2,11 @@ package ai.pipestream.proto.tasks
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.SkipWhenEmpty
 import org.gradle.api.tasks.TaskAction
@@ -34,6 +36,12 @@ abstract class BuildDescriptorsTask extends DefaultTask {
      */
     @OutputFile
     abstract RegularFileProperty getDescriptorPath()
+
+    /**
+     * The buf executable (resolved from Maven Central).
+     */
+    @InputFiles
+    abstract ConfigurableFileCollection getBufExecutable()
 
     @Inject
     protected abstract ExecOperations getExecOperations()
@@ -90,14 +98,26 @@ abstract class BuildDescriptorsTask extends DefaultTask {
         logger.lifecycle("Built descriptor file: ${descriptorFile}")
     }
 
+    /**
+     * Resolves the buf executable file, ensuring it's executable.
+     */
+    protected File resolveBufBinary() {
+        def executable = getBufExecutable().singleFile
+        if (!executable.canExecute()) {
+            executable.setExecutable(true)
+        }
+        return executable
+    }
+
     protected void buildDescriptor(File moduleDir, File outputFile) {
         logger.lifecycle("Building descriptor for module: ${moduleDir.name}")
 
+        def bufBinary = resolveBufBinary()
+        logger.info("Using buf binary: ${bufBinary.absolutePath}")
+
         ExecResult result = getExecOperations().exec { spec ->
-            // Use bash -lc to ensure buf is in PATH
             // buf build outputs a Buf Image which is compatible with FileDescriptorSet
-            spec.commandLine 'bash', '-lc',
-                "buf build ${moduleDir.absolutePath} -o ${outputFile.absolutePath}"
+            spec.commandLine bufBinary.absolutePath, 'build', moduleDir.absolutePath, '-o', outputFile.absolutePath
             spec.ignoreExitValue = true
         }
 

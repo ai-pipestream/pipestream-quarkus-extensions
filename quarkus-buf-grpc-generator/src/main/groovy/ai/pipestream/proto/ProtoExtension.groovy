@@ -54,6 +54,7 @@ abstract class ProtoExtension {
         getSourceMode().convention(
             project.providers.gradleProperty('protoSource').orElse('bsr')
         )
+        getBufVersion().convention(BufBinaryResolver.DEFAULT_BUF_VERSION)
         getQuarkusGrpcVersion().convention('3.30.3')
         getGenerateMutiny().convention(true)
         getGenerateGrpc().convention(true)
@@ -75,6 +76,12 @@ abstract class ProtoExtension {
      * Can be overridden via -PprotoSource=git
      */
     abstract Property<String> getSourceMode()
+
+    /**
+     * Buf CLI version to use. Default: 1.61.0.
+     * The plugin automatically downloads the appropriate binary for your platform.
+     */
+    abstract Property<String> getBufVersion()
 
     /**
      * Quarkus gRPC version for the Mutiny generator plugin.

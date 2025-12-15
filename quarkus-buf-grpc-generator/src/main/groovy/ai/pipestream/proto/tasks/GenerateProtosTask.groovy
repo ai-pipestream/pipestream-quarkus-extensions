@@ -2,12 +2,14 @@ package ai.pipestream.proto.tasks
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.SkipWhenEmpty
 import org.gradle.api.tasks.TaskAction
@@ -43,6 +45,12 @@ abstract class GenerateProtosTask extends DefaultTask {
      */
     @OutputDirectory
     abstract DirectoryProperty getOutputDir()
+
+    /**
+     * The buf executable (resolved from Maven Central).
+     */
+    @InputFiles
+    abstract ConfigurableFileCollection getBufExecutable()
 
     /**
      * Extra arguments to pass to buf generate command.
@@ -95,16 +103,29 @@ abstract class GenerateProtosTask extends DefaultTask {
         logger.lifecycle("Generated code for ${moduleCount} module(s) to ${outputDir}")
     }
 
+    /**
+     * Resolves the buf executable file, ensuring it's executable.
+     */
+    protected File resolveBufBinary() {
+        def executable = getBufExecutable().singleFile
+        if (!executable.canExecute()) {
+            executable.setExecutable(true)
+        }
+        return executable
+    }
+
     protected void generateModule(File moduleDir, File bufGenYaml, List<String> extraArgs) {
-        // Build the command with extra arguments
-        def command = "buf generate ${moduleDir.absolutePath} --template ${bufGenYaml.absolutePath}"
+        def bufBinary = resolveBufBinary()
+        logger.info("Using buf binary: ${bufBinary.absolutePath}")
+
+        // Build the command arguments
+        def args = [bufBinary.absolutePath, 'generate', moduleDir.absolutePath, '--template', bufGenYaml.absolutePath]
         if (extraArgs && !extraArgs.isEmpty()) {
-            command += " " + extraArgs.join(" ")
+            args.addAll(extraArgs)
         }
 
         ExecResult result = getExecOperations().exec { spec ->
-            // Use bash -lc to ensure buf is in PATH
-            spec.commandLine 'bash', '-lc', command
+            spec.commandLine args
             spec.ignoreExitValue = true
         }
 

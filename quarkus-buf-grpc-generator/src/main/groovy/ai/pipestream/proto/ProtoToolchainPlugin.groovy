@@ -50,6 +50,9 @@ class ProtoToolchainPlugin implements Plugin<Project> {
         // Create extension
         def extension = project.extensions.create("pipestreamProtos", ProtoExtension, project)
 
+        // Create buf binary configuration (downloads buf CLI from Maven Central)
+        BufBinaryResolver.createBufBinaryConfiguration(project)
+
         // Define shared directories
         def buildDir = project.layout.buildDirectory
         def exportDir = extension.exportDir
@@ -57,6 +60,9 @@ class ProtoToolchainPlugin implements Plugin<Project> {
         def pluginDir = buildDir.dir("tmp/protoc-plugins")
         def bufGenYaml = buildDir.file("buf.gen.yaml")
         def descriptorPath = extension.descriptorPath
+
+        // Get buf configuration for tasks
+        def bufConfig = project.configurations.getByName(BufBinaryResolver.BUF_BINARY_CONFIGURATION_NAME)
 
         // Register fetchProtos task
         def fetchTask = project.tasks.register("fetchProtos", FetchProtosTask) { task ->
@@ -66,6 +72,7 @@ class ProtoToolchainPlugin implements Plugin<Project> {
             task.sourceMode.set(extension.sourceMode)
             task.exportDir.set(exportDir)
             task.modules = extension.modules
+            task.bufExecutable.setFrom(bufConfig)
         }
 
         // Register prepareGenerators task
@@ -93,6 +100,7 @@ class ProtoToolchainPlugin implements Plugin<Project> {
             task.bufGenYaml.set(bufGenYaml)
             task.outputDir.set(outputDir)
             task.bufGenerateArgs.set(extension.bufGenerateArgs)
+            task.bufExecutable.setFrom(bufConfig)
         }
 
         // Register buildDescriptors task
@@ -103,6 +111,7 @@ class ProtoToolchainPlugin implements Plugin<Project> {
 
             task.exportDir.set(exportDir)
             task.descriptorPath.set(descriptorPath)
+            task.bufExecutable.setFrom(bufConfig)
 
             // Only run if generateDescriptors is enabled
             task.onlyIf {
@@ -122,6 +131,11 @@ class ProtoToolchainPlugin implements Plugin<Project> {
                 project.delete(descriptorPath)
                 project.logger.lifecycle("Cleaned proto artifacts")
             }
+        }
+
+        // Configure buf binary dependency after evaluation (when bufVersion is known)
+        project.afterEvaluate {
+            BufBinaryResolver.configureBufDependency(project, extension.bufVersion.get())
         }
 
         // Wire into Java compilation if Java plugin is applied
