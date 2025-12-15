@@ -6,7 +6,7 @@ gradle-app.setting
 .gradletasknamecache
 !gradle-wrapper.jar
 !gradle-wrapper.properties
-
+.claude-session
 # IDE - IntelliJ IDEA
 .idea/
 *.iml

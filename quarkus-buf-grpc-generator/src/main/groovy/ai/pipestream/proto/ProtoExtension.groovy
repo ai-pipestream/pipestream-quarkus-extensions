@@ -54,7 +54,9 @@ abstract class ProtoExtension {
         getSourceMode().convention(
             project.providers.gradleProperty('protoSource').orElse('bsr')
         )
-        getBufVersion().convention(BufBinaryResolver.DEFAULT_BUF_VERSION)
+        getBufVersion().convention(BinaryResolver.DEFAULT_BUF_VERSION)
+        getProtocVersion().convention(BinaryResolver.DEFAULT_PROTOC_VERSION)
+        getGrpcJavaVersion().convention(BinaryResolver.DEFAULT_GRPC_JAVA_VERSION)
         getQuarkusGrpcVersion().convention('3.30.3')
         getGenerateMutiny().convention(true)
         getGenerateGrpc().convention(true)
@@ -82,6 +84,30 @@ abstract class ProtoExtension {
      * The plugin automatically downloads the appropriate binary for your platform.
      */
     abstract Property<String> getBufVersion()
+
+    /**
+     * Protoc version to use. Default: 4.33.2.
+     * The plugin automatically downloads the appropriate binary for your platform.
+     */
+    abstract Property<String> getProtocVersion()
+
+    /**
+     * gRPC Java plugin version to use. Default: 1.77.0.
+     * The plugin automatically downloads the appropriate binary for your platform.
+     */
+    abstract Property<String> getGrpcJavaVersion()
+
+    /**
+     * Optional: Custom path to protoc binary.
+     * If set, the plugin uses this instead of downloading from Maven.
+     */
+    abstract Property<String> getProtocPath()
+
+    /**
+     * Optional: Custom path to protoc-gen-grpc-java binary.
+     * If set, the plugin uses this instead of downloading from Maven.
+     */
+    abstract Property<String> getGrpcJavaPluginPath()
 
     /**
      * Quarkus gRPC version for the Mutiny generator plugin.

@@ -50,8 +50,8 @@ class ProtoToolchainPlugin implements Plugin<Project> {
         // Create extension
         def extension = project.extensions.create("pipestreamProtos", ProtoExtension, project)
 
-        // Create buf binary configuration (downloads buf CLI from Maven Central)
-        BufBinaryResolver.createBufBinaryConfiguration(project)
+        // Create binary tool configurations (downloads from Maven Central)
+        BinaryResolver.createAllConfigurations(project)
 
         // Define shared directories
         def buildDir = project.layout.buildDirectory
@@ -61,8 +61,10 @@ class ProtoToolchainPlugin implements Plugin<Project> {
         def bufGenYaml = buildDir.file("buf.gen.yaml")
         def descriptorPath = extension.descriptorPath
 
-        // Get buf configuration for tasks
-        def bufConfig = project.configurations.getByName(BufBinaryResolver.BUF_BINARY_CONFIGURATION_NAME)
+        // Get configurations for tasks
+        def bufConfig = project.configurations.getByName(BinaryResolver.BUF_BINARY_CONFIGURATION_NAME)
+        def protocConfig = project.configurations.getByName(BinaryResolver.PROTOC_CONFIGURATION_NAME)
+        def grpcJavaConfig = project.configurations.getByName(BinaryResolver.GRPC_JAVA_CONFIGURATION_NAME)
 
         // Register fetchProtos task
         def fetchTask = project.tasks.register("fetchProtos", FetchProtosTask) { task ->
@@ -88,6 +90,9 @@ class ProtoToolchainPlugin implements Plugin<Project> {
             task.pluginDir.set(pluginDir)
             task.bufGenYaml.set(bufGenYaml)
             task.extraPlugins = extension.extraPlugins
+            // Pass protoc and grpc-java configurations for local generation
+            task.protocExecutable.setFrom(protocConfig)
+            task.grpcJavaExecutable.setFrom(grpcJavaConfig)
         }
 
         // Register generateProtos task
@@ -133,9 +138,11 @@ class ProtoToolchainPlugin implements Plugin<Project> {
             }
         }
 
-        // Configure buf binary dependency after evaluation (when bufVersion is known)
+        // Configure binary dependencies after evaluation (when versions are known)
         project.afterEvaluate {
-            BufBinaryResolver.configureBufDependency(project, extension.bufVersion.get())
+            BinaryResolver.configureBufDependency(project, extension.bufVersion.get())
+            BinaryResolver.configureProtocDependency(project, extension.protocVersion.get())
+            BinaryResolver.configureGrpcJavaDependency(project, extension.grpcJavaVersion.get())
         }
 
         // Wire into Java compilation if Java plugin is applied

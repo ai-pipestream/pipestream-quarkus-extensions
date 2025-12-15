@@ -148,8 +148,11 @@ class PluginFunctionalTest extends Specification {
         bufGenYaml.exists()
 
         def content = bufGenYaml.text
-        content.contains('buf.build/protocolbuffers/java')
-        content.contains('buf.build/grpc/java')
+        // v2 local format checks
+        content.contains('version: v2')
+        content.contains('protoc_builtin: java')
+        content.contains('protoc_path:')
+        content.contains('local:')  // grpc-java and mutiny use local:
         content.contains('protoc-gen-mutiny')
         // Verify absolute paths
         content.contains(testProjectDir.absolutePath)
@@ -270,8 +273,11 @@ class PluginFunctionalTest extends Specification {
 
         def bufGenYaml = new File(testProjectDir, 'build/buf.gen.yaml')
         def content = bufGenYaml.text
-        content.contains('buf.build/protocolbuffers/java')
-        !content.contains('buf.build/grpc/java')
+        // v2 local format - Java is still included
+        content.contains('protoc_builtin: java')
+        // gRPC local plugin should NOT be in the output (only mutiny local: for the mutiny wrapper)
+        // When gRPC is disabled, the only local: entries are for mutiny
+        !content.contains('protoc-gen-grpc-java')
     }
 
     def "can disable Mutiny generation"() {
