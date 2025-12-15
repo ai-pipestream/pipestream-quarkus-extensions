@@ -81,16 +81,36 @@ abstract class PrepareGeneratorsTask extends DefaultTask {
     /**
      * The protoc executable (resolved from Maven Central).
      * Used for local Java codegen via protoc_builtin.
+     * Ignored if customProtocPath is set.
      */
     @InputFiles
+    @org.gradle.api.tasks.Optional
     abstract ConfigurableFileCollection getProtocExecutable()
 
     /**
      * The protoc-gen-grpc-java executable (resolved from Maven Central).
      * Used for local gRPC codegen.
+     * Ignored if customGrpcJavaPath is set.
      */
     @InputFiles
+    @org.gradle.api.tasks.Optional
     abstract ConfigurableFileCollection getGrpcJavaExecutable()
+
+    /**
+     * Optional: Custom path to protoc binary.
+     * If set, this path is used instead of downloading from Maven.
+     */
+    @Input
+    @org.gradle.api.tasks.Optional
+    abstract Property<String> getCustomProtocPath()
+
+    /**
+     * Optional: Custom path to protoc-gen-grpc-java binary.
+     * If set, this path is used instead of downloading from Maven.
+     */
+    @Input
+    @org.gradle.api.tasks.Optional
+    abstract Property<String> getCustomGrpcJavaPath()
 
     @TaskAction
     void prepare() {
@@ -102,12 +122,12 @@ abstract class PrepareGeneratorsTask extends DefaultTask {
 
         pluginDir.mkdirs()
 
-        // Resolve protoc executable
-        def protocPath = resolveExecutable(getProtocExecutable())
+        // Resolve protoc executable - use custom path if specified, otherwise download from Maven
+        def protocPath = resolveProtocPath()
         logger.lifecycle("Using protoc: ${protocPath}")
 
-        // Resolve grpc-java executable
-        def grpcJavaPath = resolveExecutable(getGrpcJavaExecutable())
+        // Resolve grpc-java executable - use custom path if specified, otherwise download from Maven
+        def grpcJavaPath = resolveGrpcJavaPath()
         logger.lifecycle("Using protoc-gen-grpc-java: ${grpcJavaPath}")
 
         String mutinyPluginPath = null
@@ -118,6 +138,44 @@ abstract class PrepareGeneratorsTask extends DefaultTask {
         this.generateBufGenYaml(bufGenYaml, outputDir, protocPath, grpcJavaPath, generateGrpc, mutinyPluginPath, extraPlugins)
 
         logger.lifecycle("Generated buf.gen.yaml at: ${bufGenYaml}")
+    }
+
+    /**
+     * Resolves the protoc path - uses custom path if specified, otherwise downloads from Maven.
+     */
+    private String resolveProtocPath() {
+        def customPath = getCustomProtocPath().getOrNull()
+        if (customPath) {
+            def customFile = new File(customPath)
+            if (!customFile.exists()) {
+                throw new GradleException("Custom protoc path does not exist: ${customPath}")
+            }
+            if (!customFile.canExecute()) {
+                customFile.setExecutable(true)
+            }
+            logger.lifecycle("Using custom protoc path: ${customPath}")
+            return customPath
+        }
+        return resolveExecutable(getProtocExecutable())
+    }
+
+    /**
+     * Resolves the grpc-java plugin path - uses custom path if specified, otherwise downloads from Maven.
+     */
+    private String resolveGrpcJavaPath() {
+        def customPath = getCustomGrpcJavaPath().getOrNull()
+        if (customPath) {
+            def customFile = new File(customPath)
+            if (!customFile.exists()) {
+                throw new GradleException("Custom grpc-java plugin path does not exist: ${customPath}")
+            }
+            if (!customFile.canExecute()) {
+                customFile.setExecutable(true)
+            }
+            logger.lifecycle("Using custom grpc-java plugin path: ${customPath}")
+            return customPath
+        }
+        return resolveExecutable(getGrpcJavaExecutable())
     }
 
     /**

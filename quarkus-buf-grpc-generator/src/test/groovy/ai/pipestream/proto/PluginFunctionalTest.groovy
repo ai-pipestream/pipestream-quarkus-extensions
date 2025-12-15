@@ -424,4 +424,90 @@ class PluginFunctionalTest extends Specification {
         result.task(":fetchProtos").outcome == TaskOutcome.SUCCESS
         result.output.contains('No modules configured')
     }
+
+    def "can configure custom protoc path"() {
+        given:
+        // Create a fake protoc script for testing
+        def fakeProtoc = new File(testProjectDir, 'fake-protoc')
+        fakeProtoc.text = "#!/bin/sh\necho 'fake protoc'"
+        fakeProtoc.setExecutable(true)
+
+        buildFile << """
+            plugins {
+                id 'ai.pipestream.proto-toolchain'
+                id 'java'
+            }
+
+            repositories {
+                mavenCentral()
+            }
+
+            pipestreamProtos {
+                protocPath = '${fakeProtoc.absolutePath}'
+                modules {
+                    register("test") {
+                        bsr = "buf.build/bufbuild/buf"
+                    }
+                }
+            }
+        """
+
+        when:
+        def result = GradleRunner.create()
+            .withProjectDir(testProjectDir)
+            .withPluginClasspath()
+            .withArguments('prepareGenerators', '--stacktrace')
+            .forwardOutput()
+            .build()
+
+        then:
+        result.task(":prepareGenerators").outcome == TaskOutcome.SUCCESS
+        result.output.contains("Using custom protoc path: ${fakeProtoc.absolutePath}")
+
+        def bufGenYaml = new File(testProjectDir, 'build/buf.gen.yaml')
+        bufGenYaml.text.contains(fakeProtoc.absolutePath)
+    }
+
+    def "can configure custom grpc-java plugin path"() {
+        given:
+        // Create fake plugin scripts for testing
+        def fakeGrpcJava = new File(testProjectDir, 'fake-grpc-java')
+        fakeGrpcJava.text = "#!/bin/sh\necho 'fake grpc-java'"
+        fakeGrpcJava.setExecutable(true)
+
+        buildFile << """
+            plugins {
+                id 'ai.pipestream.proto-toolchain'
+                id 'java'
+            }
+
+            repositories {
+                mavenCentral()
+            }
+
+            pipestreamProtos {
+                grpcJavaPluginPath = '${fakeGrpcJava.absolutePath}'
+                modules {
+                    register("test") {
+                        bsr = "buf.build/bufbuild/buf"
+                    }
+                }
+            }
+        """
+
+        when:
+        def result = GradleRunner.create()
+            .withProjectDir(testProjectDir)
+            .withPluginClasspath()
+            .withArguments('prepareGenerators', '--stacktrace')
+            .forwardOutput()
+            .build()
+
+        then:
+        result.task(":prepareGenerators").outcome == TaskOutcome.SUCCESS
+        result.output.contains("Using custom grpc-java plugin path: ${fakeGrpcJava.absolutePath}")
+
+        def bufGenYaml = new File(testProjectDir, 'build/buf.gen.yaml')
+        bufGenYaml.text.contains(fakeGrpcJava.absolutePath)
+    }
 }

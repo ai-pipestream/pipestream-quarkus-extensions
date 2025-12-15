@@ -90,7 +90,10 @@ class ProtoToolchainPlugin implements Plugin<Project> {
             task.pluginDir.set(pluginDir)
             task.bufGenYaml.set(bufGenYaml)
             task.extraPlugins = extension.extraPlugins
-            // Pass protoc and grpc-java configurations for local generation
+            // Pass custom paths if specified by user (takes precedence over Maven download)
+            task.customProtocPath.set(extension.protocPath)
+            task.customGrpcJavaPath.set(extension.grpcJavaPluginPath)
+            // Pass protoc and grpc-java configurations for local generation (used if custom paths not set)
             task.protocExecutable.setFrom(protocConfig)
             task.grpcJavaExecutable.setFrom(grpcJavaConfig)
         }
@@ -140,9 +143,22 @@ class ProtoToolchainPlugin implements Plugin<Project> {
 
         // Configure binary dependencies after evaluation (when versions are known)
         project.afterEvaluate {
+            // Always need buf CLI
             BinaryResolver.configureBufDependency(project, extension.bufVersion.get())
-            BinaryResolver.configureProtocDependency(project, extension.protocVersion.get())
-            BinaryResolver.configureGrpcJavaDependency(project, extension.grpcJavaVersion.get())
+
+            // Only download protoc from Maven if user hasn't specified a custom path
+            if (!extension.protocPath.isPresent()) {
+                BinaryResolver.configureProtocDependency(project, extension.protocVersion.get())
+            } else {
+                project.logger.lifecycle("Using custom protoc path: ${extension.protocPath.get()}")
+            }
+
+            // Only download grpc-java from Maven if user hasn't specified a custom path
+            if (!extension.grpcJavaPluginPath.isPresent()) {
+                BinaryResolver.configureGrpcJavaDependency(project, extension.grpcJavaVersion.get())
+            } else {
+                project.logger.lifecycle("Using custom grpc-java plugin path: ${extension.grpcJavaPluginPath.get()}")
+            }
         }
 
         // Wire into Java compilation if Java plugin is applied
