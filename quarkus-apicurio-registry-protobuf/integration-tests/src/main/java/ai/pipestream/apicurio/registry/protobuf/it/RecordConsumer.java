@@ -11,7 +11,7 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Consumer that receives protobuf messages using Record<UUID, V> to verify key support.
+ * Consumer that receives protobuf messages using Record{@literal <}UUID, V{@literal >} to verify key support.
  */
 @ApplicationScoped
 public class RecordConsumer {
