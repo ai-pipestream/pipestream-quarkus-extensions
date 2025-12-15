@@ -54,6 +54,11 @@ dependencies {
         api project(':pipestream-service-registration-deployment')
 
         // ========================
+        // Pipestream Gradle Plugins
+        // ========================
+        api project(':quarkus-buf-grpc-generator')
+
+        // ========================
         // Pipestream Internal Libraries
         // ========================
         // Note: tika4-shaded is managed as a separate independent project
