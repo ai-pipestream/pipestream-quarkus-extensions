@@ -105,6 +105,17 @@ subprojects {
                     }
                 }
             }
+            
+            // Configure Docker Hub authentication for TestContainers
+            // TestContainers will use these environment variables to authenticate with Docker Hub
+            // This prevents rate limit errors when pulling images
+            def dockerUser = findProperty('dockerUser') ?: System.getenv('DOCKER_USER')
+            def dockerToken = findProperty('dockerToken') ?: System.getenv('DOCKER_TOKEN')
+            
+            if (dockerUser && dockerToken) {
+                testTask.environment('DOCKER_USERNAME', dockerUser)
+                testTask.environment('DOCKER_PASSWORD', dockerToken)
+            }
         }
 
         publishing {
