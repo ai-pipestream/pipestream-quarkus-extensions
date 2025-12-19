@@ -38,6 +38,10 @@ dependencies {
         api("com.google.protobuf:protobuf-java-util") { version { strictly(libs.versions.protobufVersion.get()) } }
         api("com.google.protobuf:protoc") { version { strictly(libs.versions.protobufVersion.get()) } }
 
+        // AWS SDK dependencies (required for Quarkus Amazon Services extensions)
+        api libs.aws.sdk.url.connection
+        api libs.aws.sdk.netty.nio
+
         // ========================
         // Pipestream Quarkus Extensions
         // ========================
