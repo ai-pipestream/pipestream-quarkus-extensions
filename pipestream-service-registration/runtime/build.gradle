@@ -27,8 +27,9 @@ pipestreamProtos {
             // bsr = "buf.build/pipestreamai/registration"
 
             // Git source (default - no rate limiting)
-            gitRepo = "https://github.com/ai-pipestream/pipestream-protos.git"
-            gitRef = "main"
+            // Allow override via env vars for CI/CD (e.g. passing tokens)
+            gitRepo = System.getenv('PROTO_GIT_REPO') ?: "https://github.com/ai-pipestream/pipestream-protos.git"
+            gitRef = System.getenv('PROTO_GIT_REF') ?: "main"
             gitSubdir = "registration"
         }
     }
