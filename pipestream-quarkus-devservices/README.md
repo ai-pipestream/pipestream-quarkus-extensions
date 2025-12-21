@@ -1,6 +1,6 @@
 # Quarkus Pipeline Dev Services Extension
 
-This Quarkus extension provides shared development infrastructure services for pipeline microservices. It enables out-of-the-box (OOTB) startup of a complete development environment including PostgreSQL, MySQL, Consul, Kafka, Apicurio Registry, OpenSearch, MinIO, Redis, and Infisical (for KMS/secret management).
+This Quarkus extension provides shared development infrastructure services for pipeline microservices. It enables out-of-the-box (OOTB) startup of a complete development environment including PostgreSQL, Consul, Kafka, Apicurio Registry, OpenSearch, MinIO, Redis, and Infisical (for KMS/secret management).
 
 **Important:** This is a development-only feature designed for local microservice development. It provides common infrastructure shared across multiple components to facilitate rapid development workflows. Do not use in production environments.
 
@@ -57,7 +57,7 @@ Execute:
 
 The extension will:
 - Extract the Docker Compose file to `${user.home}/.pipeline/compose-devservices.yml`
-- Start all shared infrastructure services (MySQL, Consul, Kafka, etc.)
+- Start all shared infrastructure services (PostgreSQL, Consul, Kafka, etc.)
 - Your application will connect to these services automatically
 
 ## How It Works
@@ -111,8 +111,7 @@ sequenceDiagram
 
 | Service | Purpose | Ports | Labels |
 |---------|---------|-------|--------|
-| PostgreSQL | Primary database (migrating from MySQL) | 5432 | `quarkus-dev-service-postgresql: shared` |
-| MySQL | Legacy database | 3306 | `quarkus-dev-service-mysql: shared` |
+| PostgreSQL | Primary database | 5432 | `quarkus-dev-service-postgresql: shared` |
 | Redis | Caching and Infisical support | 6379 | `quarkus-dev-service-redis: shared` |
 | Consul | Service discovery | 8500, 8600 | `quarkus-dev-service-consul: shared` |
 | Kafka | Message broker | 9092, 9094 | `quarkus-dev-service-kafka: shared` |
@@ -183,7 +182,7 @@ The extension tracks compose file versions using SHA-256 hashes:
 - **Services not starting**: Check Docker is running and ports are available
 - **Permission issues**: Ensure `${user.home}/.pipeline` is writable
 - **Port conflicts**: Services use fixed ports; resolve conflicts manually
-- **Database connection failures**: Verify MySQL initialization completed
+- **Database connection failures**: Verify PostgreSQL initialization completed
 - **Extension not loading**: Confirm dependency is added and properties are set
 
 ### Development Workflow
