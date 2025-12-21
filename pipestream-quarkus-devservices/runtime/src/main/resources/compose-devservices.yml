@@ -270,6 +270,8 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio-data:/data
+    labels:
+      quarkus-dev-service-localstack: default
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
