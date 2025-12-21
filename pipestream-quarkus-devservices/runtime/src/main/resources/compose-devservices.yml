@@ -127,7 +127,7 @@ services:
   # Apicurio Registry v3
   apicurio-registry:
     container_name: pipeline-apicurio-registry
-    image: apicurio/apicurio-registry:3.1.4
+    image: apicurio/apicurio-registry:3.1.6
     networks:
       - pipeline-test-network
     ports:
@@ -174,7 +174,7 @@ services:
   # OpenSearch 3
   opensearch:
     container_name: pipeline-opensearch
-    image: opensearchproject/opensearch:latest
+    image: opensearchproject/opensearch:3.4.0
     networks:
       - pipeline-test-network
     environment:
@@ -207,7 +207,7 @@ services:
   # OpenSearch Dashboards
   opensearch-dashboards:
     container_name: pipeline-opensearch-dashboards
-    image: opensearchproject/opensearch-dashboards:latest
+    image: opensearchproject/opensearch-dashboards:3.4.0
     networks:
       - pipeline-test-network
     ports:
