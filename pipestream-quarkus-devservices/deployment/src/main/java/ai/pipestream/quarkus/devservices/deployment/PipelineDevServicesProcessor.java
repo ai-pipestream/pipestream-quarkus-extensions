@@ -30,7 +30,7 @@ class PipelineDevServicesProcessor {
     private static final Logger LOG = Logger.getLogger(PipelineDevServicesProcessor.class);
     private static final String FEATURE = "pipeline-devservices";
     private static final String COMPOSE_FILE_RESOURCE = "compose-devservices.yml";
-    private static final String INIT_SCRIPT_RESOURCE = "init-mysql.sql";
+    private static final String INIT_SCRIPT_RESOURCE = "init-postgres.sql";
     private static final String VERSION_FILE = ".version";
     private static final String COMPOSE_CONFIG_PREFIX = "quarkus.compose.devservices.";
     private static final String PIPELINE_CONFIG_PREFIX = "pipeline.devservices.";
